@@ -1,3 +1,5 @@
+import sys
+
 from bigram_transformer import *
 
 
@@ -9,4 +11,4 @@ with torch.no_grad():
     device = torch.device('cpu')
     context = torch.zeros((1, 1), dtype=torch.long, device=device)
     model.cpu()
-    model.generate(context, max_new_tokens=100)
+    model.generate(context, max_new_tokens=int(sys.argv[1]))
