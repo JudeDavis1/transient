@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 # hyperparameters
 
-batch_size = 32
+batch_size = 64
 # max content length for predictions
 block_size = 256
 epochs = 1000
@@ -97,7 +97,7 @@ class FeedFoward(nn.Module):
 
     def __init__(self, n_embd):
         super().__init__()
-        self.net = nn.Sequential(
+        self.ffwd = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
@@ -105,7 +105,7 @@ class FeedFoward(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        return self.ffwd(x)
 
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
@@ -157,13 +157,13 @@ class BigramLanguageModel(nn.Module):
 
         return logits, loss
 
-    def generate(self, idx: torch.Tensor, max_new_tokens, display=True):
+    def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         self.cpu()
         # idx is (B, T) array of indices in the current context
         for i in range(max_new_tokens):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -block_size:]
-            logits, loss = self(idx_cond)
+            logits, _ = self(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C)
             probs = F.softmax(logits, dim=-1) # (B, C)
