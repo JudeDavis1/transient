@@ -4,11 +4,11 @@ from bigram_transformer import *
 
 
 with torch.no_grad():
+    cpu_device = torch.device('cpu')
     model = BigramLanguageModel()
-    model.load_state_dict(torch.load(transformer_model_name))
+    model.to_device(cpu_device)
+    model.load()
 
     # generate from the model
-    device = torch.device('cpu')
-    context = torch.zeros((1, 1), dtype=torch.long, device=device)
-    model.cpu()
-    model.generate(context, max_new_tokens=int(sys.argv[1]))
+    context = torch.zeros((1, 1), dtype=torch.long, device=cpu_device)
+    model.generate(context, max_new_tokens=int(sys.argv[1]), display=True)
