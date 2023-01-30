@@ -1,9 +1,7 @@
 import sys
-import time
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torch.backends import mps
 
 
 # torch.manual_seed(1337)
@@ -15,7 +13,7 @@ eval_interval = 500
 eval_iters = 1
 n_embd = 384
 n_layers = 6
-n_head = 6
+n_head = 8
 dropout = 0.2
 
 
