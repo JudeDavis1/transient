@@ -8,11 +8,11 @@ from torch.nn import functional as F
 
 
 # max content length for predictions
-block_size = 256
+block_size = 128
 eval_interval = 500
 eval_iters = 1
 n_embd = 384
-n_layers = 6
+n_layers = 8
 n_head = 8
 dropout = 0.2
 
@@ -28,6 +28,84 @@ stoi = { ch: i for i, ch in enumerate(chars) }
 itos = { i: ch for i, ch in enumerate(chars) }
 encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
 decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+
+
+class BigramLanguageModel(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        
+        # default to CPU
+        self.device = torch.device('cpu')
+        self.transformer_model_name = 'Bigram-Transformer.pt'
+        
+        # each token directly reads off the logits for the next token from a lookup table
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layers)])
+         
+         # final layer norm
+        self.ln_f = nn.LayerNorm(n_embd)
+        self.lm_head = nn.Linear(n_embd, vocab_size)
+
+
+    def forward(self, idx, targets=None):
+        B, T = idx.shape
+
+        # idx and targets are both (B, T) tensor of integers
+        token_embed = self.token_embedding_table(idx) # (B, T, C)
+        pos_embed = self.position_embedding_table(torch.arange(T, device=self.device)) # (T, C)
+        x = token_embed + pos_embed # (B, T, C)
+        x = self.blocks(x) # (B, T, C)
+        x = self.ln_f(x) # (B, T, C)
+        logits = self.lm_head(x) # (B, T, vocab_size)
+
+        if targets is None:
+            loss = None
+        else:
+            B, T, C = logits.shape
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
+            loss = F.cross_entropy(logits, targets)
+
+        return logits, loss
+    
+
+    def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
+        cpu_dev = torch.device('cpu')
+
+        # idx is (B, T) array of indices in the current context
+        for _ in range(max_new_tokens):
+            # crop idx to the last block_size tokens
+            idx_cond = idx[:, -block_size:]
+            logits, _ = self(idx_cond)
+            # focus only on the last time step
+            logits = logits[:, -1, :] # becomes (B, C)
+            probs = F.softmax(logits, dim=-1) # (B, C)
+            # sample from the distribution
+            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            # append sampled index to the running sequence
+            idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
+            if display:
+                scalar_idx = idx_next.flatten().to(cpu_dev).tolist()
+                sys.stdout.write(decode(scalar_idx))
+                sys.stdout.flush()
+        
+        if display: print()
+        
+        return idx
+    
+    def to_device(self, device: torch.device):
+        self.device = device
+        print(f'Using {str(device).upper()} backend...')
+        
+        return self.to(device)
+    
+    def load(self, path='Bigram-Transformer.pt'):
+        self.load_state_dict(torch.load(path))
+    
+    def save(self, path='Bigram-Transformer.pt'):
+        torch.save(self.state_dict(), path)
 
 
 class Head(nn.Module):
@@ -113,80 +191,5 @@ class Block(nn.Module):
         return x
 
 
-class BigramLanguageModel(nn.Module):
 
-    def __init__(self):
-        super().__init__()
-        
-        # default to CPU
-        self.device = torch.device('cpu')
-        self.transformer_model_name = 'Bigram-Transformer.pt'
-        
-        # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
-        self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layers)])
-         
-         # final layer norm
-        self.ln_f = nn.LayerNorm(n_embd)
-        self.lm_head = nn.Linear(n_embd, vocab_size)
-
-
-    def forward(self, idx, targets=None):
-        B, T = idx.shape
-
-        # idx and targets are both (B,T) tensor of integers
-        token_embed = self.token_embedding_table(idx) # (B,T,C)
-        pos_embed = self.position_embedding_table(torch.arange(T, device=self.device)) # (T,C)
-        x = token_embed + pos_embed # (B,T,C)
-        x = self.blocks(x) # (B,T,C)
-        x = self.ln_f(x) # (B,T,C)
-        logits = self.lm_head(x) # (B,T,vocab_size)
-
-        if targets is None:
-            loss = None
-        else:
-            B, T, C = logits.shape
-            logits = logits.view(B * T, C)
-            targets = targets.view(B * T)
-            loss = F.cross_entropy(logits, targets)
-
-        return logits, loss
-    
-
-    def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
-        cpu_dev = torch.device('cpu')
-
-        # idx is (B, T) array of indices in the current context
-        for _ in range(max_new_tokens):
-            # crop idx to the last block_size tokens
-            idx_cond = idx[:, -block_size:]
-            logits, _ = self(idx_cond)
-            # focus only on the last time step
-            logits = logits[:, -1, :] # becomes (B, C)
-            probs = F.softmax(logits, dim=-1) # (B, C)
-            # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
-            # append sampled index to the running sequence
-            idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
-            if display:
-                scalar_idx = idx_next.flatten().to(cpu_dev).tolist()
-                sys.stdout.write(decode(scalar_idx))
-                sys.stdout.flush()
-        
-        if display: print()
-        
-        return idx
-    
-    def to_device(self, device: torch.device):
-        self.device = device
-        print(f'Using {str(device).upper()} backend...')
-        
-        return self.to(device)
-    
-    def load(self, path='Bigram-Transformer.pt'):
-        self.load_state_dict(torch.load(path))
-    
-    def save(self, path='Bigram-Transformer.pt'):
-        torch.save(self.state_dict(), path)
 

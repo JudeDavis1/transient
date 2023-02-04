@@ -1,11 +1,14 @@
+import sys
 from tqdm import tqdm
+from torch.backends import mps
 
 from bigram_transformer import *
 
 
 batch_size = 32
-learning_rate = 0.0003
-epochs = 2000
+cache_size = 32
+learning_rate = 0.00037
+epochs = int(sys.argv[1])
 transformer_model_name = 'Bigram-Transformer.pt'
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -13,12 +16,31 @@ if mps.is_built():
     device = torch.device('mps')
 
 
-model = BigramLanguageModel().to_device(device)
-model.load(transformer_model_name)
+def main():
+    model = BigramLanguageModel().to_device(device)
+    model.load(transformer_model_name)
+
+    # print the number of parameters in the model
+    print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+
+    for iter in (t := tqdm(range(epochs))):
+        xb, yb = get_batch('train')
+
+        # evaluate the loss
+        logits, loss = model(xb, yb)
+        t.set_description(f"Epoch {iter}: Train loss {loss:.4f}")
+
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+
+    model.save('Bigram-Transformer.pt')
+
 
 
 @torch.no_grad()
-def estimate_loss():
+def estimate_loss(model: nn.Module):
     out = {}
     model.eval()
 
@@ -55,26 +77,5 @@ def get_batch(split):
 
     return x, y
 
-
-# print the number of parameters in the model
-print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
-
-for iter in (t := tqdm(range(epochs))):
-    # every once in a while evaluate the loss on train and val sets
-    # if iter % eval_interval == 0 or iter == epochs - 1:
-    #     losses = estimate_loss()
-    #     t.set_description(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-
-    # sample a batch of data
-    xb, yb = get_batch('train')
-
-    # evaluate the loss
-    logits, loss = model(xb, yb)
-    t.set_description(f"Epoch {iter}: Train loss {loss:.4f}")
-
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
-    optimizer.step()
-
-model.save('Bigram-Transformer.pt')
+if __name__ == '__main__':
+    main()
