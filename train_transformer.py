@@ -1,3 +1,4 @@
+import os
 import sys
 from tqdm import tqdm
 from torch.backends import mps
@@ -6,19 +7,25 @@ from bigram_transformer import *
 
 
 batch_size = 32
-cache_size = 32
 learning_rate = 0.00037
 epochs = int(sys.argv[1])
-transformer_model_name = 'Bigram-Transformer.pt'
+transformer_model_name = 'Bigram-Transformer-10Layer.pt'
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if mps.is_built():
     device = torch.device('mps')
 
+# train and test splits
+data = torch.tensor(encode(text), dtype=torch.long)
+n = int(0.9 * len(data))
+train_data = data[:n]
+val_data = data[n:]
 
 def main():
+    # first 90% will be train, rest validation
     model = BigramLanguageModel().to_device(device)
-    model.load(transformer_model_name)
+    if os.path.exists(transformer_model_name):
+        model.load(transformer_model_name)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
@@ -35,7 +42,7 @@ def main():
         loss.backward()
         optimizer.step()
 
-    model.save('Bigram-Transformer.pt')
+    model.save(transformer_model_name)
 
 
 
@@ -57,13 +64,6 @@ def estimate_loss(model: nn.Module):
     model.train()
     
     return out
-
-# Train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
-# first 90% will be train, rest validation
-n = int(0.9 * len(data))
-train_data = data[:n]
-val_data = data[n:]
 
 
 # data loading

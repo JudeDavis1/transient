@@ -12,7 +12,7 @@ block_size = 128
 eval_interval = 500
 eval_iters = 1
 n_embd = 384
-n_layers = 8
+n_layers = 10
 n_head = 8
 dropout = 0.2
 
