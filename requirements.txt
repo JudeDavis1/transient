@@ -2,3 +2,4 @@ tqdm
 torch
 numpy
 colorama
+bs4

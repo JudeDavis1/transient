@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from dataset import BookCorpusDataset
+
 
 # torch.manual_seed(1337)
 
@@ -12,13 +14,13 @@ block_size = 128
 eval_interval = 500
 eval_iters = 1
 n_embd = 384
-n_layers = 10
-n_head = 8
-dropout = 0.2
+n_layers = 8
+n_head = 6
+dropout = 0.001
 
 
-with open('bible_verses.txt', 'r', encoding='utf-8') as f:
-    text = f.read()
+dataset = BookCorpusDataset()
+text = dataset.file_contents
 
 # unique characters that occur in this text
 chars = sorted(list(set(text)))

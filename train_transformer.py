@@ -7,9 +7,9 @@ from bigram_transformer import *
 
 
 batch_size = 32
-learning_rate = 0.00037
+learning_rate = 0.0008
 epochs = int(sys.argv[1])
-transformer_model_name = 'Bigram-Transformer-10Layer.pt'
+transformer_model_name = 'Bigram-Transformer-8Layer.pt'
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if mps.is_built():
@@ -35,7 +35,7 @@ def main():
         xb, yb = get_batch('train')
 
         # evaluate the loss
-        logits, loss = model(xb, yb)
+        _, loss = model(xb, yb)
         t.set_description(f"Epoch {iter}: Train loss {loss:.4f}")
 
         optimizer.zero_grad(set_to_none=True)
