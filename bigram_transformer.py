@@ -10,7 +10,7 @@ from dataset import BookCorpusDataset
 
 
 # max content length for predictions
-block_size = 128
+block_size = 64
 eval_interval = 500
 eval_iters = 1
 n_embd = 384
@@ -111,7 +111,7 @@ class BigramLanguageModel(nn.Module):
 
 
 class Head(nn.Module):
-    """ one head of self-attention """
+    """One head of self-attention"""
 
     def __init__(self, head_size):
         super().__init__()
@@ -140,7 +140,7 @@ class Head(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    """Multiple heads of self-attention in parallel"""
+    """Multiple heads of self-attention"""
 
     def __init__(self, num_heads, head_size):
         super().__init__()
@@ -151,7 +151,7 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
+        out = self.proj(out)
 
         return out
 
@@ -164,9 +164,9 @@ class FeedFoward(nn.Module):
 
         self.ffwd = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
-            nn.ReLU(),
+            nn.LayerNorm(4 * n_embd),
+            nn.ReLU(inplace=True),
             nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(dropout),
         )
 
     def forward(self, x):

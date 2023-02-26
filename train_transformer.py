@@ -6,7 +6,7 @@ from torch.backends import mps
 from bigram_transformer import *
 
 
-batch_size = 32
+batch_size = 64
 learning_rate = 0.0008
 epochs = int(sys.argv[1])
 transformer_model_name = 'Bigram-Transformer-8Layer.pt'
@@ -22,7 +22,6 @@ train_data = data[:n]
 val_data = data[n:]
 
 def main():
-    # first 90% will be train, rest validation
     model = BigramLanguageModel().to_device(device)
     if os.path.exists(transformer_model_name):
         model.load(transformer_model_name)

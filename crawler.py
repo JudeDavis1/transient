@@ -1,7 +1,6 @@
 import io
 import bs4
 import string
-import random
 import requests
 
 from collections import deque
@@ -13,11 +12,11 @@ import logger
 def test():
     crawler = Crawler()
     crawler.crawl(
-        'https://en.wikipedia.org/wiki/Hello',
-        max_depth=100
+        'https://en.wikipedia.org/wiki/Chess',
+        max_depth=200
     )
 
-    with io.open('data/wiki.txt', 'w+', encoding='utf-8') as f:
+    with io.open('data/wiki.txt', 'a', encoding='utf-8') as f:
         f.writelines(crawler.data)
 
 class Crawler:
