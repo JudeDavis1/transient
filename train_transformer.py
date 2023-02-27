@@ -6,7 +6,7 @@ from torch.backends import mps
 from bigram_transformer import *
 
 
-batch_size = 64
+batch_size = 128
 learning_rate = 0.0008
 epochs = int(sys.argv[1])
 transformer_model_name = 'Bigram-Transformer-8Layer.pt'
@@ -24,13 +24,14 @@ val_data = data[n:]
 def main():
     model = BigramLanguageModel().to_device(device)
     if os.path.exists(transformer_model_name):
-        model.load(transformer_model_name)
+        model.load(transformer_model_name, map_location='cpu')
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for iter in (t := tqdm(range(epochs))):
+    t = tqdm(range(epochs))
+    for iter in t:
         xb, yb = get_batch('train')
 
         # evaluate the loss

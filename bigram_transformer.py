@@ -103,8 +103,8 @@ class BigramLanguageModel(nn.Module):
         
         return self.to(device)
     
-    def load(self, path='Bigram-Transformer.pt'):
-        self.load_state_dict(torch.load(path))
+    def load(self, path='Bigram-Transformer.pt', **kwargs):
+        self.load_state_dict(torch.load(path, **kwargs))
     
     def save(self, path='Bigram-Transformer.pt'):
         torch.save(self.state_dict(), path)
