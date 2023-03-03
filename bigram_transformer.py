@@ -16,7 +16,7 @@ eval_iters = 1
 n_embd = 384
 n_layers = 8
 n_head = 6
-dropout = 0.001
+dropout = 0.1
 
 
 dataset = BookCorpusDataset()
