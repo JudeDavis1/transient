@@ -20,7 +20,7 @@ dropout = 0.1
 
 
 dataset = BookCorpusDataset()
-text = dataset.file_contents
+text = dataset.file_contents.split(' ')
 
 # unique characters that occur in this text
 chars = sorted(list(set(text)))
