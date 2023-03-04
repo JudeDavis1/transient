@@ -6,7 +6,7 @@ from torch.nn import functional as F
 from dataset import BookCorpusDataset
 
 
-# torch.manual_seed(1337)
+torch.manual_seed(1337)
 
 
 # max content length for predictions
@@ -151,7 +151,7 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.proj(out)
+        out = self.dropout(self.proj(out))
 
         return out
 
