@@ -105,7 +105,7 @@ class BookCorpusDataset(Dataset):
 
 
 
-async def load_corpus(text_file_dir, just_contents=False) -> Union[list, str]:
+async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:
     corpus = ''
     files_str = os.listdir(text_file_dir)
     files = [open('data/' + f, 'r', encoding='utf-8') for f in files_str]
@@ -123,22 +123,34 @@ async def load_corpus(text_file_dir, just_contents=False) -> Union[list, str]:
     return corpus
 
 
-async def proc(word):
-    new_word = ''
-    allowed_punc = '?.!-'
+def split_tokens(text: str):
+    words = text.split(' ')
+    tokens = []
 
-    for char in word:
-        if char in allowed_punc or char in string.ascii_letters:
-            new_word += char
+    for word in words:
+        tokens.append(' ')
+        # remove special chars
+        token = ''
+        for char in word:
+            if char.isalnum(): token += char
+        
+        tokens.append(token)
+        
+        # check if special chars are in the token and add them
+        for char in word:
+            if char in string.punctuation:
+                tokens.append(char)
+    
+    # remove first redundant space
+    tokens = tokens[1:]
 
-    if word != '':
-        new_word = new_word.strip()
-    return new_word
+    return tokens
 
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    start = time.time()
-    corpus, text = loop.run_until_complete(load_corpus('data'))
-    end = time.time()
-    print(end - start)
+    # loop = asyncio.get_event_loop()
+    # start = time.time()
+    # corpus, text = loop.run_until_complete(load_corpus('data'))
+    # end = time.time()
+    # print(end - start)
+    split_tokens('hello. ok! or ok dave')

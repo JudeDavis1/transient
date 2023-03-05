@@ -3,3 +3,4 @@ torch
 numpy
 colorama
 bs4
+pytest
