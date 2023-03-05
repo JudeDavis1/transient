@@ -1,11 +1,13 @@
 import os
 import sys
+import random
+
 from tqdm import tqdm
 from torch.backends import mps
 
 from bigram_transformer import *
 
-
+dataset.generate_batches()
 batch_size = 128
 learning_rate = 0.0008
 epochs = int(sys.argv[1])
@@ -16,10 +18,10 @@ if mps.is_built():
     device = torch.device('mps')
 
 # train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9 * len(data))
-train_data = data[:n]
-val_data = data[n:]
+# data = torch.tensor(encode(text), dtype=torch.long)
+# n = int(0.9 * len(data))
+# train_data = data[:n]
+# val_data = data[n:]
 
 def main():
     model = BigramLanguageModel().to_device(device)
@@ -67,13 +69,17 @@ def estimate_loss(model: nn.Module):
 
 
 # data loading
-def get_batch(split):
-    # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i: i + block_size] for i in ix])
-    y = torch.stack([data[i + 1: i + block_size + 1] for i in ix])
-    x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+def get_batch(*args, **kwargs):
+    x = []
+    y = []
+    batch = [random.choice(dataset) for _ in range(batch_size)]
+
+    for a, b in batch:
+        x.append(a)
+        y.append(b)
+    
+    x = torch.stack(x).to(device, non_blocking=True)
+    y = torch.stack(y).to(device, non_blocking=True)
 
     return x, y
 

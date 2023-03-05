@@ -16,7 +16,7 @@ with torch.no_grad():
 
     while True:
         context_str = input('> ')
-        context = torch.tensor([encode(context_str)])
+        context = torch.tensor([dataset.encode(context_str)])
 
         logger.info(context_str, end='')
         model.generate(context, max_new_tokens=int(sys.argv[1]), display=True)

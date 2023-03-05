@@ -8,11 +8,13 @@ with the book dataset. Also supports multithreading.
 
 
 import os
-import time
+import nltk
 import string
 import asyncio
 import warnings
+import torch
 
+from tqdm import tqdm
 from torch.utils.data import Dataset
 from typing import List, Optional, Union
 
@@ -48,36 +50,32 @@ class BookCorpusDataset(Dataset):
 
     def __init__(self,
                  chunk_size=3,
-                 just_corpus=False,
-                 save_corpus=True,
-                 cache_train_data=False,
                  train_data_file: Optional[str]=None,
-                 corpus_from_file: Optional[str]=None):
+                 corpus_from_file: Optional[str]=None,
+                 just_corpus=False):
         try:
             assert bool(train_data_file) == bool(corpus_from_file)
         except AssertionError:
             raise ValueError('''If train_data_file is None, then so should the corpus_from_file.
             corpus_from_file is dependant on train_data_file.''')
-
-        start = time.time()
+        
         self.n_batches = 500
-        self._just_corpus = just_corpus
         self.loop = asyncio.get_event_loop()
-        self.chunk_size = chunk_size if not self._just_corpus else None
-
-        if just_corpus:
-            return
+        self.chunk_size = chunk_size
 
         self.file_contents = self._run_load_corpus(True)
+        tokenized = nltk.word_tokenize(self.file_contents)
+        self.corpus = sorted(list(set([*tokenized, ' ', '\n', '"', '\\', *string.punctuation])))
+        self.vocab_size = len(self.corpus)
+
+        if just_corpus: return
+
+        self.train_data = self.encode(tokenized, limit=100000)
+        print(self.train_data)
 
         self.prep_data = []
 
     def generate_batches(self):
-        try:
-            assert not self._just_corpus
-        except AssertionError:
-            raise AssertionError('If you want to run: generate_batches(), you must set (just_corpus = False) in the constructor.')
-
         beginning = 0
         last_idx = self.chunk_size
 
@@ -87,13 +85,32 @@ class BookCorpusDataset(Dataset):
 
             beginning = last_idx
             last_idx += self.chunk_size
+    
+    def encode(self, s, limit=float('inf')):
+        l_idx = []
+        i = 0
+        s = s[:limit] if limit == float('inf') else s
+        for token in tqdm(s[:limit]):
+            try:
+                l_idx.append(self.corpus.index(token))
+            except ValueError:
+                l_idx.append(self.corpus.index(token.lower()))
+            i += 1
+            
+            if i >= limit:
+                break
+        
+        return l_idx
+    
+    def decode(self, l):
+        return self.corpus[l]
 
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))
 
     def _get_batch(self, beginning, last_idx):
-        starting_phrase = self.train_data[beginning:last_idx]
-        target_word = self.train_data[last_idx:last_idx + self.chunk_size]
+        starting_phrase = torch.tensor(self.train_data[beginning:last_idx])
+        target_word = torch.tensor(self.train_data[last_idx:last_idx + self.chunk_size])
 
         return (starting_phrase, target_word)
 

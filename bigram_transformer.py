@@ -1,6 +1,7 @@
 import sys
 import torch
 import torch.nn as nn
+import string
 from torch.nn import functional as F
 
 from dataset import BookCorpusDataset
@@ -18,18 +19,7 @@ n_layers = 8
 n_head = 6
 dropout = 0.1
 
-
-dataset = BookCorpusDataset()
-text = dataset.file_contents
-
-# unique characters that occur in this text
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
-# create a mapping from characters to integers and vice-versa
-stoi = { ch: i for i, ch in enumerate(chars) }
-itos = { i: ch for i, ch in enumerate(chars) }
-encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+dataset = BookCorpusDataset(chunk_size=block_size)
 
 
 class BigramLanguageModel(nn.Module):
@@ -42,13 +32,13 @@ class BigramLanguageModel(nn.Module):
         self.transformer_model_name = 'Bigram-Transformer.pt'
         
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.token_embedding_table = nn.Embedding(dataset.vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layers)])
          
          # final layer norm
         self.ln_f = nn.LayerNorm(n_embd)
-        self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.lm_head = nn.Linear(n_embd, dataset.vocab_size)
 
 
     def forward(self, idx, targets=None):
@@ -60,7 +50,7 @@ class BigramLanguageModel(nn.Module):
         x = token_embed + pos_embed # (B, T, C)
         x = self.blocks(x) # (B, T, C)
         x = self.ln_f(x) # (B, T, C)
-        logits = self.lm_head(x) # (B, T, vocab_size)
+        logits = self.lm_head(x) # (B, T, dataset.vocab_size)
 
         if targets is None:
             loss = None
@@ -90,7 +80,7 @@ class BigramLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
             if display:
                 scalar_idx = idx_next.flatten().to(cpu_dev).tolist()
-                sys.stdout.write(decode(scalar_idx))
+                sys.stdout.write(dataset.decode(scalar_idx) + ' ')
                 sys.stdout.flush()
         
         if display: print()
