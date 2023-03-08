@@ -44,7 +44,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     t = tqdm(range(epochs))
-    val_loss = None
+    val_loss = 0
     for iter in t:
         optimizer.zero_grad(set_to_none=True)
         xb, yb = get_batch('train')
@@ -54,7 +54,7 @@ def main():
 
         # evaluate the loss
         _, loss = model(xb, yb)
-        t.set_description(f"Epoch {iter} - Train loss: {loss:.4f}  Validation loss: {val_loss if val_loss else 'N/A'}")
+        t.set_description(f"Epoch {iter} - Train loss: {loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'}")
 
         loss.backward()
         optimizer.step()
