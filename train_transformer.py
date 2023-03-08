@@ -14,7 +14,6 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if mps.is_built():
     device = torch.device('mps')
 
-device = torch.device('cpu')
 
 # train and test splits
 data = torch.tensor(encode(text), dtype=torch.long)
