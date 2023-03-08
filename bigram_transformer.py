@@ -9,16 +9,6 @@ from dataset import BookCorpusDataset
 torch.manual_seed(1337)
 
 
-# max content length for predictions
-block_size = 64
-eval_interval = 500
-eval_iters = 1
-n_embd = 384
-n_layers = 8
-n_head = 6
-dropout = 0.1
-
-
 dataset = BookCorpusDataset()
 text = dataset.file_contents
 
@@ -34,17 +24,35 @@ decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integ
 
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self):
+    def __init__(
+        self,
+        block_size = 128,
+        n_embd = 384,
+        n_layers = 8,
+        n_head = 6,
+        dropout = 0.2,
+    ):
         super().__init__()
+
+        # hyperparams
+        self.block_size = block_size
+        self.n_embd = n_embd
+        self.n_layers = n_layers
+        self.n_head = n_head
+        self.dropout = dropout
         
         # default to CPU
         self.device = torch.device('cpu')
-        self.transformer_model_name = f'BT-{n_head}Head-{n_layers}Layer.pt'
+        self.transformer_model_name = f'models/BT-{n_head}Head-{n_layers}Layer.pt'
         
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layers)])
+        self.blocks = nn.Sequential(*[
+            Block(
+                n_embd, n_head=n_head, dropout=self.dropout, block_size=self.block_size
+            ) for _ in range(n_layers)
+        ])
          
         # final layer norm
         self.ln_f = nn.LayerNorm(n_embd)
@@ -79,7 +87,7 @@ class BigramLanguageModel(nn.Module):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
-            idx_cond = idx[:, -block_size:]
+            idx_cond = idx[:, -self.block_size:]
             logits, _ = self(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C)
@@ -110,12 +118,49 @@ class BigramLanguageModel(nn.Module):
         torch.save(self.state_dict(), path)
 
 
+class Block(nn.Module):
+    """Transformer block: communication followed by computation"""
+
+    def __init__(self, n_embd, n_head, block_size, dropout):
+        # n_embd: embedding dimension, n_head: the number of heads we'd like
+        super().__init__()
+
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
+        self.ffwd = FeedFoward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+    def forward(self, x):
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+
+        return x
+
+
+class MultiHeadAttention(nn.Module):
+    """Multiple heads of self-attention"""
+
+    def __init__(self, n_embd, head_size, num_heads, block_size, dropout):
+        super().__init__()
+
+        self.heads = nn.ModuleList([Head(n_embd, head_size, block_size=block_size, dropout=dropout) for _ in range(num_heads)])
+        self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.dropout(self.proj(out))
+
+        return out
+
+
 class Head(nn.Module):
     """One head of self-attention"""
 
-    def __init__(self, head_size):
+    def __init__(self, n_embd, head_size, block_size, dropout):
         super().__init__()
-
+        
         self.key = nn.Linear(n_embd, head_size, bias=False)
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
@@ -139,23 +184,6 @@ class Head(nn.Module):
         return out
 
 
-class MultiHeadAttention(nn.Module):
-    """Multiple heads of self-attention"""
-
-    def __init__(self, num_heads, head_size):
-        super().__init__()
-
-        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(n_embd, n_embd)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
-
-        return out
-
-
 class FeedFoward(nn.Module):
     """Simple linear layer followed by a non-linearity"""
 
@@ -171,27 +199,4 @@ class FeedFoward(nn.Module):
 
     def forward(self, x):
         return self.ffwd(x)
-
-
-class Block(nn.Module):
-    """Transformer block: communication followed by computation"""
-
-    def __init__(self, n_embd, n_head):
-        # n_embd: embedding dimension, n_head: the number of heads we'd like
-        super().__init__()
-
-        head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, head_size)
-        self.ffwd = FeedFoward(n_embd)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
-
-    def forward(self, x):
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
-
-        return x
-
-
-
 
