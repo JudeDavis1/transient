@@ -7,9 +7,8 @@ from bigram_transformer import *
 
 
 batch_size = 128
-learning_rate = 0.0008
+learning_rate = 0.0003
 epochs = int(sys.argv[1])
-transformer_model_name = 'Bigram-Transformer-8Layer.pt'
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if mps.is_built():
@@ -23,8 +22,8 @@ val_data = data[n:]
 
 def main():
     model = BigramLanguageModel().to_device(device)
-    if os.path.exists(transformer_model_name):
-        model.load(transformer_model_name, map_location='cpu')
+    if os.path.exists(model.transformer_model_name):
+        model.load(model.transformer_model_name, map_location='cpu')
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
@@ -42,7 +41,7 @@ def main():
         loss.backward()
         optimizer.step()
 
-    model.save(transformer_model_name)
+    model.save(model.transformer_model_name)
 
 
 

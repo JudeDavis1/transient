@@ -39,7 +39,7 @@ class BigramLanguageModel(nn.Module):
         
         # default to CPU
         self.device = torch.device('cpu')
-        self.transformer_model_name = 'Bigram-Transformer.pt'
+        self.transformer_model_name = f'BT-{n_head}Head-{n_layers}Layer.pt'
         
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
