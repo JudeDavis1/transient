@@ -37,7 +37,7 @@ model = BigramLanguageModel(
 def main():
     if os.path.exists(model.transformer_model_name):
         print("Loading model:", model.transformer_model_name)
-        model.load(model.transformer_model_name, map_location='cpu')
+        model.load(model.transformer_model_name, map_location=device)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
