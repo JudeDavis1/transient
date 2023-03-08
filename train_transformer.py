@@ -10,6 +10,7 @@ from bigram_transformer import *
 
 batch_size = 128
 learning_rate = 0.0003
+val_interval = 10
 epochs = int(sys.argv[1])
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -43,14 +44,18 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     t = tqdm(range(epochs))
+    val_loss = None
     for iter in t:
+        optimizer.zero_grad(set_to_none=True)
         xb, yb = get_batch('train')
+
+        if (iter + 1) % val_interval == 0:
+            val_loss = get_val_loss(model, 5)
 
         # evaluate the loss
         _, loss = model(xb, yb)
-        t.set_description(f"Epoch {iter}: Train loss {loss:.4f}")
+        t.set_description(f"Epoch {iter} - Train loss: {loss:.4f}  Validation loss: {val_loss if val_loss else 'N/A'}")
 
-        optimizer.zero_grad(set_to_none=True)
         loss.backward()
         optimizer.step()
 
@@ -59,32 +64,38 @@ def main():
 
 
 @torch.no_grad()
-def estimate_loss(model: nn.Module, eval_iters=50):
-    out = {}
+def get_val_loss(model: BigramLanguageModel, eval_iters=50):
+    """Estimates the validation loss of current model"""
+
     model.eval()
+    
+    val_loss = 0
+    for _ in range(eval_iters):
+        X, Y = get_batch('val')
 
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-
-            _, loss = model(X, Y)
-            losses[k] = loss.item()
-        
-        out[split] = losses.mean()
+        _, loss = model(X, Y)
+        val_loss += loss.item()
+    
+    # get the mean
+    val_loss /= eval_iters
     model.train()
     
-    return out
+    return val_loss
 
 
-# data loading
-def get_batch(split):
-    # generate a small batch of data of inputs x and targets y
+def get_batch(split: str):
+    """Generate a small batch of data of inputs x and targets y"""
+
+    split = split.lower()
+    assert split in ['val', 'train'], 'Split must be either \'val\' or \'train\''
+
     data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - model.block_size, (batch_size,))
+
+    # subtracting block_size because we may go over len(data) for the y set
+    max_idx = len(data) - model.block_size
+    ix = torch.randint(max_idx, (batch_size,))
     x = torch.stack([data[i: i + model.block_size] for i in ix])
-    y = torch.stack([data[i + 1: i + model.block_size + 1] for i in ix])
+    y = torch.stack([data[i + 1: i + 1 + model.block_size] for i in ix])
     x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
     return x, y
