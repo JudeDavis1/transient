@@ -8,7 +8,6 @@ from dataset import BookCorpusDataset
 
 torch.manual_seed(1337)
 
-
 dataset = BookCorpusDataset()
 text = dataset.file_contents
 

@@ -3,6 +3,8 @@ import sys
 from tqdm import tqdm
 from torch.backends import mps
 
+import config
+
 from bigram_transformer import *
 
 
@@ -23,10 +25,10 @@ val_data = data[n:]
 
 # model with hyperparams
 model = BigramLanguageModel(
-    block_size=128,
-    n_embd=384,
-    n_layers=12,
-    n_head=12,
+    block_size=config.BLOCK_SIZE,
+    n_embd=config.N_EMBD,
+    n_layers=config.N_LAYERS,
+    n_head=config.N_HEAD,
     dropout=0.2
 ).to_device(device)
 
@@ -57,7 +59,7 @@ def main():
 
 
 @torch.no_grad()
-def estimate_loss(model: nn.Module, eval_iters=100):
+def estimate_loss(model: nn.Module, eval_iters=50):
     out = {}
     model.eval()
 
