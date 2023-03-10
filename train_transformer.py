@@ -9,7 +9,7 @@ from bigram_transformer import *
 
 
 batch_size = 128
-learning_rate = 0.0003
+learning_rate = 0.0004
 val_interval = 10
 epochs = int(sys.argv[1])
 
