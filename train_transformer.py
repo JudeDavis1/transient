@@ -9,8 +9,8 @@ from bigram_transformer import *
 
 
 batch_size = 128
-learning_rate = 0.0004
-val_interval = 10
+learning_rate = 0.0005
+val_interval = 2
 epochs = int(sys.argv[1])
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -36,7 +36,6 @@ model = BigramLanguageModel(
 
 def main():
     if os.path.exists(model.transformer_model_name):
-        print("Loading model:", model.transformer_model_name)
         model.load(model.transformer_model_name, map_location=device)
 
     # print the number of parameters in the model
