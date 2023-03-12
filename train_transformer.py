@@ -4,18 +4,25 @@ import random
 
 from tqdm import tqdm
 from torch.backends import mps
+from matplotlib import pyplot as plt
+
+import config
 
 from bigram_transformer import *
 
-dataset.generate_batches()
-batch_size = 128
-learning_rate = 0.0008
+
+batch_size = 32
+learning_rate = 0.00035
+val_interval = 2
+gradient_acc = 4
 epochs = int(sys.argv[1])
-transformer_model_name = 'Bigram-Transformer-8Layer.pt'
+val_loss_history = []
+training_loss_history = []
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if mps.is_built():
     device = torch.device('mps')
+
 
 # train and test splits
 # data = torch.tensor(encode(text), dtype=torch.long)
@@ -23,49 +30,79 @@ if mps.is_built():
 # train_data = data[:n]
 # val_data = data[n:]
 
+# model with hyperparams
+model = BigramLanguageModel(
+    block_size=config.BLOCK_SIZE,
+    n_embd=config.N_EMBD,
+    n_layers=config.N_LAYERS,
+    n_head=config.N_HEAD,
+    dropout=0.1
+).to_device(device)
+
+
 def main():
-    model = BigramLanguageModel().to_device(device)
-    if os.path.exists(transformer_model_name):
-        model.load(transformer_model_name, map_location='cpu')
+    if os.path.exists(model.transformer_model_name):
+        model.load(map_location=device)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     t = tqdm(range(epochs))
+    val_loss = 0
+    total_loss = 0
     for iter in t:
         xb, yb = get_batch('train')
 
+        if (iter + 1) % val_interval == 0:
+            val_loss = get_val_loss(model, 1)
+
         # evaluate the loss
         _, loss = model(xb, yb)
-        t.set_description(f"Epoch {iter}: Train loss {loss:.4f}")
+        val_loss_history.append(val_loss)
+        training_loss_history.append(loss.item())
 
-        optimizer.zero_grad(set_to_none=True)
+        loss: torch.Tensor = loss / gradient_acc
         loss.backward()
-        optimizer.step()
+        total_loss += loss.item()
 
-    model.save(transformer_model_name)
+        if (iter + 1) % gradient_acc == 0 or (iter + 1) == epochs:
+            optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
 
+            t.set_description(f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'}")
+            total_loss = 0
+
+    model.save()
+    show_loss()
+
+
+def show_loss():
+    epoch_l = list(range(1, epochs + 1))
+    plt.plot(epoch_l, training_loss_history, label='Training loss')
+    plt.plot(epoch_l, val_loss_history, label='Validation loss')
+    plt.legend()
+    plt.show()
 
 
 @torch.no_grad()
-def estimate_loss(model: nn.Module):
-    out = {}
+def get_val_loss(model: BigramLanguageModel, eval_iters=50) -> float:
+    """Estimates the validation loss of current model"""
+
     model.eval()
+    
+    val_loss = 0.
+    for _ in range(eval_iters):
+        X, Y = get_batch('val')
 
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-
-            _, loss = model(X, Y)
-            losses[k] = loss.item()
-        
-        out[split] = losses.mean()
+        _, loss = model(X, Y)
+        val_loss += loss.item()
+    
+    # get the mean
+    val_loss /= eval_iters
     model.train()
     
-    return out
+    return val_loss
 
 
 # data loading
