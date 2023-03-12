@@ -13,16 +13,16 @@ def test():
     crawler = Crawler()
     crawler.crawl(
         'https://en.wikipedia.org/wiki/Chess',
-        max_depth=200
+        max_depth=500
     )
 
     with io.open('data/wiki.txt', 'a', encoding='utf-8') as f:
-        f.writelines(crawler.data)
+        f.writelines(crawler.get_text())
 
 class Crawler:
 
     def __init__(self):
-        self.data = []
+        self.data = set()
         self.visited_pages = set()
         self.item: WebItem = WebItem('wikipedia.org', ['p'])
         self.frontier = deque([])  # A FIFO queue of all pages to explore
@@ -71,7 +71,7 @@ class Crawler:
                 if len(text.split(' ')) < min_words \
                     or not self._content_is_valid(text): continue
 
-                self.data.append(text)
+                self.data.add(text)
 
             n_ = 0  # Number of links found
             for link in soup.find_all('a'):
@@ -85,13 +85,17 @@ class Crawler:
                 if link.startswith('/'):
                     # The link is usually a subdirectory
                     link = 'https://en.wikipedia.org' + link
-                    self.frontier.append(link)
+                    if link not in self.visited_pages:
+                        self.frontier.append(link)
                     n_ += 1
 
                 if n_ >= n_links_per_page:
                     break
 
             i += 1
+    
+    def get_text(self):
+        return list(self.data)
 
     def _content_is_valid(self, text) -> bool:
         # The text must only contain text, numbers and symbols (english)
