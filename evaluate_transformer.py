@@ -15,7 +15,7 @@ with torch.no_grad():
         n_layers=config.N_LAYERS
     )
     model.to_device(cpu_device)
-    model.load(model.transformer_model_name, map_location='cpu')
+    model.load(map_location='cpu')
 
     # generate from the model
     context = torch.zeros((1, 10), dtype=torch.long, device=cpu_device)

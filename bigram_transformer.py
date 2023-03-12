@@ -14,6 +14,7 @@ text = dataset.file_contents
 # unique characters that occur in this text
 chars = sorted(list(set(text)))
 vocab_size = len(chars)
+print(chars)
 # create a mapping from characters to integers and vice-versa
 stoi = { ch: i for i, ch in enumerate(chars) }
 itos = { i: ch for i, ch in enumerate(chars) }
@@ -110,13 +111,13 @@ class BigramLanguageModel(nn.Module):
         
         return self.to(device)
     
-    def load(self, path='Bigram-Transformer.pt', v=False, **kwargs):
-        if v:
-            print("Loading model:", self.transformer_model_name)
-        self.load_state_dict(torch.load(path, **kwargs))
+    def load(self, **kwargs):
+        print("[*] Loading model:", self.transformer_model_name)
+        self.load_state_dict(torch.load(self.transformer_model_name, **kwargs))
     
-    def save(self, path='Bigram-Transformer.pt'):
-        torch.save(self.state_dict(), path)
+    def save(self):
+        print("[*] Saving model:", self.transformer_model_name)
+        torch.save(self.state_dict(), self.transformer_model_name)
 
 
 class Block(nn.Module):
