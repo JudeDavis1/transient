@@ -24,7 +24,7 @@ if mps.is_built():
 
 
 # train and test splits
-data = torch.tensor(encode(text), dtype=torch.int16)
+data = torch.tensor(encode(text), dtype=torch.long)
 n = int(0.9 * len(data))
 train_data = data[:n]
 val_data = data[n:]
