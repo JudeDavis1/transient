@@ -35,7 +35,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.2
+    dropout=0.1
 ).to_device(device)
 
 
