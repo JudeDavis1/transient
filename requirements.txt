@@ -1,4 +1,5 @@
 tqdm
+matplotlib
 torch
 numpy
 colorama
