@@ -11,6 +11,8 @@ import config
 from bigram_transformer import *
 
 
+dataset.generate_batches()
+
 batch_size = 32
 learning_rate = 0.00035
 val_interval = 2
@@ -25,10 +27,11 @@ if mps.is_built():
 
 
 # train and test splits
-# data = torch.tensor(encode(text), dtype=torch.long)
-# n = int(0.9 * len(data))
-# train_data = data[:n]
-# val_data = data[n:]
+data = dataset.prep_data
+n = int(0.9 * len(data))
+train_data = data[:n]
+val_data = data[n:]
+
 
 # model with hyperparams
 model = BigramLanguageModel(
@@ -39,10 +42,9 @@ model = BigramLanguageModel(
     dropout=0.1
 ).to_device(device)
 
-
 def main():
-    if os.path.exists(model.transformer_model_name):
-        model.load(map_location=device)
+    # if os.path.exists(model.transformer_model_name):
+    #     model.load(map_location=device)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
@@ -106,10 +108,12 @@ def get_val_loss(model: BigramLanguageModel, eval_iters=50) -> float:
 
 
 # data loading
-def get_batch(*args, **kwargs):
+def get_batch(split):
+    ds = train_data if split == 'train' else val_data
     x = []
     y = []
-    batch = [random.choice(dataset) for _ in range(batch_size)]
+    idx = random.randint(0, len(ds) - 1)
+    batch = [ds[idx] for _ in range(batch_size)]
 
     for a, b in batch:
         x.append(a)
@@ -117,6 +121,7 @@ def get_batch(*args, **kwargs):
     
     x = torch.stack(x).to(device, non_blocking=True)
     y = torch.stack(y).to(device, non_blocking=True)
+
 
     return x, y
 

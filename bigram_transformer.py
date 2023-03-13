@@ -3,24 +3,18 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+import config
+
 from dataset import BookCorpusDataset
 
 
 torch.manual_seed(1337)
 
-dataset = BookCorpusDataset()
-text = dataset.file_contents
+dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
 
 # unique characters that occur in this text
-chars = sorted(list(set(text)))
-vocab_size = len(chars)
-print(chars)
-# create a mapping from characters to integers and vice-versa
-stoi = { ch: i for i, ch in enumerate(chars) }
-itos = { i: ch for i, ch in enumerate(chars) }
-encode = lambda s: [stoi[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
-
+tokens = dataset.corpus
+vocab_size = dataset.vocab_size
 
 class BigramLanguageModel(nn.Module):
 
@@ -61,7 +55,6 @@ class BigramLanguageModel(nn.Module):
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
-
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_embedding_table(idx) # (B, T, C)
         pos_embed = self.position_embedding_table(torch.arange(T, device=self.device)) # (T, C)

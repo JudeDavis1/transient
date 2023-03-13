@@ -59,7 +59,7 @@ class BookCorpusDataset(Dataset):
             raise ValueError('''If train_data_file is None, then so should the corpus_from_file.
             corpus_from_file is dependant on train_data_file.''')
         
-        self.n_batches = 500
+        self.n_batches = 1000000
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
 
@@ -69,9 +69,11 @@ class BookCorpusDataset(Dataset):
         self.vocab_size = len(self.corpus)
 
         if just_corpus: return
+        self.limit = 10000
 
-        self.train_data = self.encode(tokenized, limit=100000)
-        print(self.train_data)
+        self.train_data = self.encode(tokenized, self.limit)
+        print('All elements exists:', all(self.train_data))
+        print(len(self.train_data))
 
         self.prep_data = []
 
@@ -79,8 +81,10 @@ class BookCorpusDataset(Dataset):
         beginning = 0
         last_idx = self.chunk_size
 
-        for i in range(self.n_batches):
+        while True:
             sample = self._get_batch(beginning, last_idx)
+            if not len(sample[0]):
+                break
             self.prep_data.append(sample)
 
             beginning = last_idx
@@ -89,12 +93,14 @@ class BookCorpusDataset(Dataset):
     def encode(self, s, limit=float('inf')):
         l_idx = []
         i = 0
-        s = s[:limit] if limit == float('inf') else s
-        for token in tqdm(s[:limit]):
+        s = s if limit == float('inf') else s[:limit]
+        for token in tqdm(s):
             try:
-                l_idx.append(self.corpus.index(token))
+                token = self.corpus.index(token)
             except ValueError:
-                l_idx.append(self.corpus.index(token.lower()))
+                token = self.corpus.index(token.lower())
+            
+            l_idx.append(token)
             i += 1
             
             if i >= limit:
@@ -109,8 +115,8 @@ class BookCorpusDataset(Dataset):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))
 
     def _get_batch(self, beginning, last_idx):
-        starting_phrase = torch.tensor(self.train_data[beginning:last_idx])
-        target_word = torch.tensor(self.train_data[last_idx:last_idx + self.chunk_size])
+        starting_phrase = torch.tensor(self.train_data[beginning:last_idx], dtype=torch.long)
+        target_word = torch.tensor(self.train_data[last_idx + 1:last_idx + 1 + self.chunk_size], dtype=torch.long)
 
         return (starting_phrase, target_word)
 
