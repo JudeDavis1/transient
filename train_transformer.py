@@ -10,8 +10,8 @@ import config
 from bigram_transformer import *
 
 
-batch_size = 64
-learning_rate = 0.00035
+batch_size = 96
+learning_rate = 0.0004
 val_interval = 2
 gradient_acc = 4
 epochs = int(sys.argv[1])
