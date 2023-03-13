@@ -59,7 +59,6 @@ class BookCorpusDataset(Dataset):
             raise ValueError('''If train_data_file is None, then so should the corpus_from_file.
             corpus_from_file is dependant on train_data_file.''')
         
-        self.n_batches = 1000000
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
 
@@ -69,7 +68,7 @@ class BookCorpusDataset(Dataset):
         self.vocab_size = len(self.corpus)
 
         if just_corpus: return
-        self.limit = 10000
+        self.limit = 100000
 
         self.train_data = self.encode(tokenized, self.limit)
         print('All elements exists:', all(self.train_data))
@@ -83,12 +82,12 @@ class BookCorpusDataset(Dataset):
 
         while True:
             sample = self._get_batch(beginning, last_idx)
-            if not len(sample[0]):
+            if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
             self.prep_data.append(sample)
 
-            beginning = last_idx
-            last_idx += self.chunk_size
+            beginning = last_idx + 1
+            last_idx += self.chunk_size + 1
     
     def encode(self, s, limit=float('inf')):
         l_idx = []

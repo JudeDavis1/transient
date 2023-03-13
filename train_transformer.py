@@ -13,7 +13,7 @@ from bigram_transformer import *
 
 dataset.generate_batches()
 
-batch_size = 32
+batch_size = 16
 learning_rate = 0.00035
 val_interval = 2
 gradient_acc = 4
