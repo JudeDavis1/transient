@@ -58,7 +58,6 @@ class BigramLanguageModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
-
     def forward(self, idx, targets=None):
         B, T = idx.shape
 
