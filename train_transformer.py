@@ -14,7 +14,7 @@ from bigram_transformer import *
 batch_size = 70
 learning_rate = 0.0005
 val_interval = 2
-gradient_acc = 4
+gradient_acc = 2
 epochs = int(sys.argv[1])
 val_loss_history = []
 training_loss_history = []
