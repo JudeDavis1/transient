@@ -1,5 +1,6 @@
 import os
 import sys
+import contextlib
 
 from tqdm import tqdm
 from torch.backends import mps
@@ -53,7 +54,10 @@ def main():
     for iter in t:
         xb, yb = get_batch('train')
 
-        with torch.autocast(model.device):
+        with (
+            torch.autocast(model.device) if model.device == 'cuda'
+            else contextlib.nullcontext()
+        ):
             if (iter + 1) % val_interval == 0:
                 val_loss = get_val_loss(model, 1)
 
