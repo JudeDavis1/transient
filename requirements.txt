@@ -4,3 +4,4 @@ numpy
 colorama
 bs4
 pytest
+nltk

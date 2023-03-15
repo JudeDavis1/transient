@@ -68,7 +68,7 @@ class BookCorpusDataset(Dataset):
         self.vocab_size = len(self.corpus)
 
         if just_corpus: return
-        self.limit = 100000
+        self.limit = 10000
 
         self.train_data = self.encode(tokenized, self.limit)
         print('All elements exists:', all(self.train_data))
@@ -108,7 +108,7 @@ class BookCorpusDataset(Dataset):
         return l_idx
     
     def decode(self, l):
-        return self.corpus[l]
+        return self.corpus[l[0]]
 
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))
