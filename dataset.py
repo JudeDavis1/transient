@@ -68,7 +68,7 @@ class BookCorpusDataset(Dataset):
         self.vocab_size = len(self.corpus)
 
         if just_corpus: return
-        self.limit = 10000
+        self.limit = 100000
 
         self.train_data = self.encode(tokenized, self.limit)
         print('All elements exists:', all(self.train_data))

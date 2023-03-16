@@ -13,10 +13,10 @@ from bigram_transformer import *
 
 dataset.generate_batches()
 
-batch_size = 16
-learning_rate = 0.00035
+batch_size = 32
+learning_rate = 0.0006
 val_interval = 2
-gradient_acc = 4
+gradient_acc = 2
 epochs = int(sys.argv[1])
 val_loss_history = []
 training_loss_history = []
@@ -39,12 +39,12 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.1
+    dropout=0.2
 ).to_device(device)
 
 def main():
-    # if os.path.exists(model.transformer_model_name):
-    #     model.load(map_location=device)
+    if os.path.exists(model.transformer_model_name):
+        model.load(map_location=device)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
