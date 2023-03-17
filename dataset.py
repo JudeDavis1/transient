@@ -60,6 +60,8 @@ class BookCorpusDataset(Dataset):
             raise ValueError('''If train_data_file is None, then so should the corpus_from_file.
             corpus_from_file is dependant on train_data_file.''')
         
+        nltk.download('punkt', quiet=True)
+        
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
         self.train_data_file = './train_data.gz.npy'

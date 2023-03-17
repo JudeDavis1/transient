@@ -1,4 +1,13 @@
+'''
+
+All relevant modules for the transformer architecture.
+
+
+'''
+
+
 import sys
+import lzma
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -105,11 +114,15 @@ class BigramLanguageModel(nn.Module):
     
     def load(self, **kwargs):
         print("[*] Loading model:", self.transformer_model_name)
-        self.load_state_dict(torch.load(self.transformer_model_name, **kwargs))
+        
+        with lzma.open(self.transformer_model_name, 'rb') as f:
+            self.load_state_dict(torch.load(f, **kwargs))
     
     def save(self):
         print("[*] Saving model:", self.transformer_model_name)
-        torch.save(self.state_dict(), self.transformer_model_name)
+
+        with lzma.open(self.transformer_model_name, 'wb', preset=9) as f:
+            torch.save(self.state_dict(), f)
 
 
 class Block(nn.Module):
@@ -164,24 +177,23 @@ class Head(nn.Module):
 
     def forward(self, x):
         B, T, C = x.shape
-        k = self.key(x)   # (B, T, C)
-        q = self.query(x) # (B, T, C)
+        k = self.dropout(self.key(x))   # (B, T, C)
+        q = self.dropout(self.query(x)) # (B, T, C)
+        v = self.dropout(self.value(x)) # (B, T, C)
         
         # compute attention scores ("affinities")
-        wei = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
-        wei = self.dropout(wei)
+        attn_weights = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
+        attn_weights = attn_weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+        attn_weights = F.softmax(attn_weights, dim=-1) # (B, T, T)
 
         # perform the weighted aggregation of the values
-        v = self.value(x) # (B, T, C)
-        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+        out = attn_weights @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
 
         return out
 
 
 class FeedFoward(nn.Module):
-    """Simple linear layer followed by a non-linearity"""
+    """Simple fully connected feed forward layer"""
 
     def __init__(self, n_embd):
         super().__init__()
