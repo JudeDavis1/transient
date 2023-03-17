@@ -1,3 +1,4 @@
+import os
 import sys
 import random
 import contextlib
@@ -14,7 +15,7 @@ from bigram_transformer import *
 dataset.generate_batches()
 
 batch_size = 32
-learning_rate = 0.0006
+learning_rate = 0.00004
 val_interval = 2
 gradient_acc = 2
 epochs = int(sys.argv[1])
@@ -40,7 +41,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.2
+    dropout=0.1
 ).to_device(device)
 
 def main():
