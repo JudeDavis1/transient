@@ -13,6 +13,7 @@ import string
 import asyncio
 import warnings
 import torch
+import numpy as np
 
 from tqdm import tqdm
 from torch.utils.data import Dataset
@@ -61,6 +62,7 @@ class BookCorpusDataset(Dataset):
         
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
+        self.train_data_file = './train_data.gz.npy'
 
         self.file_contents = self._run_load_corpus(True)
         tokenized = nltk.word_tokenize(self.file_contents)
@@ -68,13 +70,20 @@ class BookCorpusDataset(Dataset):
         self.vocab_size = len(self.corpus)
 
         if just_corpus: return
-        self.limit = 100000
 
-        self.train_data = self.encode(tokenized, self.limit)
+        # the list of data in (train_x, train_y) format
+        self.prep_data = []
+        if os.path.exists(self.train_data_file):
+            print(f'Loading training data: {self.train_data_file}')
+            self.train_data: np.ndarray = np.load(self.train_data_file)
+            return
+        self.limit = float('inf')
+
+        self.train_data = np.array(self.encode(tokenized, self.limit))
+        np.save(self.train_data_file, self.train_data)
         print('All elements exists:', all(self.train_data))
         print(len(self.train_data))
 
-        self.prep_data = []
 
     def generate_batches(self):
         beginning = 0
