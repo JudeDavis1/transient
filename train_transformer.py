@@ -1,5 +1,6 @@
 import sys
 import random
+import contextlib
 
 from tqdm import tqdm
 from torch.backends import mps
@@ -15,8 +16,9 @@ dataset.generate_batches()
 batch_size = 16
 learning_rate = 0.00035
 val_interval = 2
-gradient_acc = 4
+gradient_acc = 2
 epochs = int(sys.argv[1])
+
 val_loss_history = []
 training_loss_history = []
 
@@ -38,7 +40,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.1
+    dropout=0.2
 ).to_device(device)
 
 def main():
@@ -55,15 +57,19 @@ def main():
     for iter in t:
         xb, yb = get_batch('train')
 
-        if (iter + 1) % val_interval == 0:
-            val_loss = get_val_loss(model, 1)
+        with (
+            torch.autocast(model.device) if model.device == 'cuda'
+            else contextlib.nullcontext()
+        ):
+            if (iter + 1) % val_interval == 0:
+                val_loss = get_val_loss(model, 1)
 
-        # evaluate the loss
-        _, loss = model(xb, yb)
-        val_loss_history.append(val_loss)
-        training_loss_history.append(loss.item())
+            # evaluate the loss
+            _, loss = model(xb, yb)
+            val_loss_history.append(val_loss)
+            training_loss_history.append(loss.item())
+            loss: torch.Tensor = loss / gradient_acc
 
-        loss: torch.Tensor = loss / gradient_acc
         loss.backward()
         total_loss += loss.item()
 
