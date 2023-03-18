@@ -84,7 +84,6 @@ class BookCorpusDataset(Dataset):
 
         self.train_data = np.array(self.encode(tokenized, self.limit))
         np.save(self.train_data_file, self.train_data)
-        print(self.train_data)
         print('All elements exist:', all(self.train_data))
         print(len(self.train_data))
 
