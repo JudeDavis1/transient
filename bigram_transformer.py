@@ -121,7 +121,7 @@ class BigramLanguageModel(nn.Module):
     def save(self):
         print("[*] Saving model:", self.transformer_model_name)
 
-        with lzma.open(self.transformer_model_name, 'wb', preset=9) as f:
+        with lzma.open(self.transformer_model_name, 'wb', preset=4) as f:
             torch.save(self.state_dict(), f)
 
 
