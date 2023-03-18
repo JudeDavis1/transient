@@ -68,7 +68,7 @@ class BookCorpusDataset(Dataset):
         self.tokenizer = nltk.tokenize.RegexpTokenizer(r'\w+|\s+|[^\w\s]+')
 
         self.file_contents = self._run_load_corpus(True)
-        tokenized = self.tokenizer.tokenize(self.file_contents)
+        tokenized = self.tokenize(self.file_contents)
         self.corpus = sorted(list(set([*tokenized, ' ', '\n', '"', '\\', *string.punctuation])))
         self.vocab_size = len(self.corpus)
 
@@ -100,6 +100,9 @@ class BookCorpusDataset(Dataset):
 
             beginning = last_idx + 1
             last_idx += self.chunk_size + 1
+    
+    def tokenize(self, text):
+        return self.tokenizer.tokenize(text)
     
     def encode(self, s, limit=float('inf')):
         l_idx = []

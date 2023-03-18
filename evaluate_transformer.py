@@ -24,7 +24,7 @@ with torch.no_grad():
     while True:
         context_str = input('> ')
         context = torch.tensor([dataset.encode(
-            dataset.tokenizer.tokenize(context_str)
+            dataset.tokenize(context_str)
         )])
 
         logger.info(context_str, end=' ')
