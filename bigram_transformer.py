@@ -99,7 +99,7 @@ class BigramLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
             if display:
                 scalar_idx = idx_next.flatten().to(cpu_dev).tolist()
-                sys.stdout.write(dataset.decode(scalar_idx) + ' ')
+                sys.stdout.write(dataset.decode(scalar_idx))
                 sys.stdout.flush()
         
         if display: print()

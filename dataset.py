@@ -65,9 +65,10 @@ class BookCorpusDataset(Dataset):
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
         self.train_data_file = './train_data.gz.npy'
+        self.tokenizer = nltk.tokenize.RegexpTokenizer(r'\w+|\s+|[^\w\s]+')
 
         self.file_contents = self._run_load_corpus(True)
-        tokenized = nltk.word_tokenize(self.file_contents)
+        tokenized = self.tokenizer.tokenize(self.file_contents)
         self.corpus = sorted(list(set([*tokenized, ' ', '\n', '"', '\\', *string.punctuation])))
         self.vocab_size = len(self.corpus)
 
@@ -83,7 +84,8 @@ class BookCorpusDataset(Dataset):
 
         self.train_data = np.array(self.encode(tokenized, self.limit))
         np.save(self.train_data_file, self.train_data)
-        print('All elements exists:', all(self.train_data))
+        print(self.train_data)
+        print('All elements exist:', all(self.train_data))
         print(len(self.train_data))
 
 
