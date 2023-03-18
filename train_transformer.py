@@ -14,8 +14,8 @@ from bigram_transformer import *
 
 dataset.generate_batches()
 
-batch_size = 8
-learning_rate = 0.00004
+batch_size = 32
+learning_rate = 0.00005
 val_interval = 2
 gradient_acc = 2
 epochs = int(sys.argv[1])
@@ -50,7 +50,7 @@ def main():
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95))
 
     t = tqdm(range(epochs))
     val_loss = 0
