@@ -149,7 +149,7 @@ class Block(nn.Module):
 
         head_size = n_embd // n_head
         self.sa = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
-        self.ffwd = FeedFoward(n_embd)
+        self.ffwd = FeedFoward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
@@ -210,7 +210,7 @@ class Head(nn.Module):
 class FeedFoward(nn.Module):
     """Simple fully connected feed forward layer"""
 
-    def __init__(self, n_embd):
+    def __init__(self, n_embd, dropout):
         super().__init__()
 
         self.ffwd = nn.Sequential(
@@ -218,6 +218,7 @@ class FeedFoward(nn.Module):
             nn.LayerNorm(4 * n_embd),
             nn.ReLU(inplace=True),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout)
         )
 
     def forward(self, x):
