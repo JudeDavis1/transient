@@ -7,9 +7,10 @@ All relevant modules for the transformer architecture.
 
 import os
 import sys
-import lzma
 import torch
+import tarfile
 import torch.nn as nn
+
 from torch.nn import functional as F
 
 import config
@@ -24,6 +25,8 @@ dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
 # unique characters that occur in this text
 tokens = dataset.corpus
 vocab_size = dataset.vocab_size
+print('Vocab size:', vocab_size)
+
 
 class BigramLanguageModel(nn.Module):
 
@@ -113,7 +116,7 @@ class BigramLanguageModel(nn.Module):
         
         return self.to(device)
     
-    def load(self, load_cache=True, **kwargs):
+    def load(self, load_cache=False, **kwargs):
         print("[*] Loading model:", self.transformer_model_name)
 
         if load_cache:
@@ -122,18 +125,19 @@ class BigramLanguageModel(nn.Module):
                 self.load_state_dict(torch.load(self.cache_dir))
                 return
         
-        with lzma.open(self.transformer_model_name, 'rb') as f:
-            self.load_state_dict(torch.load(f, **kwargs))
+        with tarfile.open(self.transformer_model_name, 'rb') as f:
+            self.load_state_dict(torch.load(f.extractfile(), **kwargs))
     
-    def save(self, save_cache=True):
+    def save(self, save_cache=False):
         print("[*] Saving model:", self.transformer_model_name)
         if save_cache:
             # save a copy of an uncompressed model
             torch.save(self.state_dict(), self.cache_dir)
 
-        with lzma.open(self.transformer_model_name, 'wb', preset=1) as f:
+        torch.save(self.state_dict(), self.transformer_model_name)
+        with tarfile.open(self.transformer_model_name, 'w:gz') as f:
             # compression for transport
-            torch.save(self.state_dict(), f)
+            f.add(self.transformer_model_name)
 
 
 class Block(nn.Module):
