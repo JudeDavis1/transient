@@ -65,6 +65,9 @@ class BigramLanguageModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size)
 
+        # apply weights initialization
+        self.apply(self._init_weights)
+
     def forward(self, idx, targets=None):
         B, T = idx.shape
         # idx and targets are both (B, T) tensor of integers
@@ -138,6 +141,16 @@ class BigramLanguageModel(nn.Module):
         with tarfile.open(self.transformer_model_name, 'w:gz') as f:
             # compression for transport
             f.add(self.transformer_model_name)
+    
+    def _init_weights(self, m: nn.Module):
+        normal_dist = lambda param: nn.init.normal_(param, mean=0.0, std=0.02)
+
+        if isinstance(m, nn.Linear):
+            normal_dist(m.weight)
+            if m.bias != None:
+                nn.init.zeros_(m.bias)
+        elif isinstance(m, nn.Embedding):
+            normal_dist(m.weight)
 
 
 class Block(nn.Module):
