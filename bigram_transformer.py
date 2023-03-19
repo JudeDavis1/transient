@@ -2,10 +2,10 @@
 
 All relevant modules for the transformer architecture.
 
-
 '''
 
 
+import os
 import sys
 import lzma
 import torch
@@ -46,6 +46,7 @@ class BigramLanguageModel(nn.Module):
         
         # default to CPU
         self.device = torch.device('cpu')
+        self.cache_dir = './model_cache'
         self.transformer_model_name = f'models/BT-{n_head}Head-{n_layers}Layer.pt'
         
         # each token directly reads off the logits for the next token from a lookup table
@@ -56,7 +57,7 @@ class BigramLanguageModel(nn.Module):
                 n_embd, n_head=n_head, dropout=self.dropout, block_size=self.block_size
             ) for _ in range(n_layers)
         ])
-         
+        
         # final layer norm
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size)
@@ -112,16 +113,26 @@ class BigramLanguageModel(nn.Module):
         
         return self.to(device)
     
-    def load(self, **kwargs):
+    def load(self, load_cache=True, **kwargs):
         print("[*] Loading model:", self.transformer_model_name)
+
+        if load_cache:
+            if os.path.exists(self.cache_dir):
+                # load the uncompressed copy
+                self.load_state_dict(torch.load(self.cache_dir))
+                return
         
         with lzma.open(self.transformer_model_name, 'rb') as f:
             self.load_state_dict(torch.load(f, **kwargs))
     
-    def save(self):
+    def save(self, save_cache=True):
         print("[*] Saving model:", self.transformer_model_name)
+        if save_cache:
+            # save a copy of an uncompressed model
+            torch.save(self.state_dict(), self.cache_dir)
 
-        with lzma.open(self.transformer_model_name, 'wb', preset=4) as f:
+        with lzma.open(self.transformer_model_name, 'wb', preset=1) as f:
+            # compression for transport
             torch.save(self.state_dict(), f)
 
 
@@ -177,9 +188,9 @@ class Head(nn.Module):
 
     def forward(self, x):
         B, T, C = x.shape
-        k = self.dropout(self.key(x))   # (B, T, C)
-        q = self.dropout(self.query(x)) # (B, T, C)
-        v = self.dropout(self.value(x)) # (B, T, C)
+        k = self.key(x)   # (B, T, C)
+        q = self.query(x) # (B, T, C)
+        v = self.value(x) # (B, T, C)
         
         # compute attention scores ("affinities")
         attn_weights = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
@@ -187,7 +198,7 @@ class Head(nn.Module):
         attn_weights = F.softmax(attn_weights, dim=-1) # (B, T, T)
 
         # perform the weighted aggregation of the values
-        out = attn_weights @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+        out = self.dropout(attn_weights) @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
 
         return out
 

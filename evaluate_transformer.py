@@ -16,7 +16,8 @@ with torch.no_grad():
         n_layers=config.N_LAYERS
     )
     model.to_device(cpu_device)
-    model.load(map_location='cpu')
+    model.load(map_location='mps')
+    model.eval()
 
     # generate from the model
     context = torch.zeros((1, 10), dtype=torch.long, device=cpu_device)
@@ -27,5 +28,5 @@ with torch.no_grad():
             dataset.tokenize(context_str)
         )])
 
-        logger.info(context_str, end=' ')
+        logger.info(context_str)
         model.generate(context, max_new_tokens=int(sys.argv[1]), display=True)

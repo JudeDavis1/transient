@@ -15,8 +15,8 @@ from bigram_transformer import *
 dataset.generate_batches()
 
 batch_size = 32
-learning_rate = 0.00005
-val_interval = 2
+learning_rate = 0.0003
+val_interval = 4
 gradient_acc = 2
 epochs = int(sys.argv[1])
 
@@ -41,8 +41,9 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.1
+    dropout=0.2
 ).to_device(device)
+model.train()
 
 def main():
     if os.path.exists(model.transformer_model_name):
