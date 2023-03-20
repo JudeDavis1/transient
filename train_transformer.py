@@ -51,7 +51,7 @@ def main():
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95))
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95), eps=1e-4)
 
     t = tqdm(range(epochs))
     val_loss = 0
