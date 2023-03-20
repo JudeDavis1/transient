@@ -5,6 +5,7 @@ All relevant modules for the transformer architecture.
 '''
 
 
+import io
 import os
 import sys
 import torch
@@ -128,8 +129,9 @@ class BigramLanguageModel(nn.Module):
                 self.load_state_dict(torch.load(self.cache_dir))
                 return
         
-        with tarfile.open(self.transformer_model_name, 'rb') as f:
-            self.load_state_dict(torch.load(f.extractfile(), **kwargs))
+        
+        with tarfile.open(self.transformer_model_name, 'r:gz') as f:
+            self.load_state_dict(torch.load(f.extractfile(self.transformer_model_name), **kwargs))
     
     def save(self, save_cache=False):
         print("[*] Saving model:", self.transformer_model_name)
