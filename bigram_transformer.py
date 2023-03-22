@@ -131,18 +131,19 @@ class BigramLanguageModel(nn.Module):
         
         
         with tarfile.open(self.transformer_model_name, 'r:gz') as f:
+            self.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
+        
+        
+        with tarfile.open(self.transformer_model_name, 'r:gz') as f:
             self.load_state_dict(torch.load(f.extractfile(self.transformer_model_name), **kwargs))
     
     def save(self, save_cache=False):
         print("[*] Saving model:", self.transformer_model_name)
-        if save_cache:
-            # save a copy of an uncompressed model
-            torch.save(self.state_dict(), self.cache_dir)
 
-        torch.save(self.state_dict(), self.transformer_model_name)
+        torch.save(self.state_dict(), self.cache_dir)
         with tarfile.open(self.transformer_model_name, 'w:gz') as f:
             # compression for transport
-            f.add(self.transformer_model_name)
+            f.add(self.cache_dir)
     
     def _init_weights(self, m: nn.Module):
         normal_dist = lambda param: nn.init.normal_(param, mean=0.0, std=0.02)
