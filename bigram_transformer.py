@@ -132,10 +132,6 @@ class BigramLanguageModel(nn.Module):
         
         with tarfile.open(self.transformer_model_name, 'r:gz') as f:
             self.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
-        
-        
-        with tarfile.open(self.transformer_model_name, 'r:gz') as f:
-            self.load_state_dict(torch.load(f.extractfile(self.transformer_model_name), **kwargs))
     
     def save(self, save_cache=False):
         print("[*] Saving model:", self.transformer_model_name)
@@ -164,14 +160,14 @@ class Block(nn.Module):
         super().__init__()
 
         head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
+        self.sa_block = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
         self.ffwd = FeedFoward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
+        x = self.ln1(x + self.sa_block(x))
+        x = self.ln2(x + self.ffwd(x))
 
         return x
 
@@ -232,7 +228,7 @@ class FeedFoward(nn.Module):
         self.ffwd = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.LayerNorm(4 * n_embd),
-            nn.ReLU(inplace=True),
+            nn.GELU(),
             nn.Linear(4 * n_embd, n_embd),
             nn.Dropout(dropout)
         )
