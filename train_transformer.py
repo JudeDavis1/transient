@@ -15,7 +15,7 @@ from bigram_transformer import *
 dataset.generate_batches()
 
 batch_size = 32
-learning_rate = 0.0003
+learning_rate = 0.0005
 val_interval = 4
 gradient_acc = 2
 epochs = int(sys.argv[1])

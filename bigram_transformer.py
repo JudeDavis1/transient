@@ -129,7 +129,6 @@ class BigramLanguageModel(nn.Module):
                 self.load_state_dict(torch.load(self.cache_dir))
                 return
         
-        
         with tarfile.open(self.transformer_model_name, 'r:gz') as f:
             self.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
     
