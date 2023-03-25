@@ -147,6 +147,12 @@ class BigramLanguageModel(nn.Module):
                 nn.init.zeros_(m.bias)
         elif isinstance(m, nn.Embedding):
             normal_dist(m.weight)
+        elif isinstance(m, nn.Conv1d):
+            n = m.kernel_size[0] * m.in_channels
+            std = (2.0 / n) ** 0.5
+            m.weight.data.normal_(0.0, std)
+            if m.bias is not None:
+                m.bias.data.zero_()
 
 
 class Block(nn.Module):
