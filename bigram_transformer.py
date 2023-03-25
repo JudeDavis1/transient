@@ -19,8 +19,6 @@ import config
 from dataset import BookCorpusDataset
 
 
-torch.manual_seed(1337)
-
 dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
 
 # unique characters that occur in this text
@@ -54,8 +52,8 @@ class BigramLanguageModel(nn.Module):
         self.transformer_model_name = f'models/BT-{n_head}Head-{n_layers}Layer.pt'
         
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(dataset.vocab_size, n_embd)
-        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
+        self.position_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(*[
             Block(
                 n_embd, n_head=n_head, dropout=self.dropout, block_size=self.block_size
@@ -72,8 +70,8 @@ class BigramLanguageModel(nn.Module):
     def forward(self, idx, targets=None):
         B, T = idx.shape
         # idx and targets are both (B, T) tensor of integers
-        token_embed = self.token_embedding_table(idx) # (B, T, C)
-        pos_embed = self.position_embedding_table(torch.arange(T, device=self.device)) # (T, C)
+        token_embed = self.token_table(idx) # (B, T, C)
+        pos_embed = self.position_table(torch.arange(T, device=self.device)) # (T, C)
         x = token_embed + pos_embed # (B, T, C)
         x = self.blocks(x) # (B, T, C)
         x = self.ln_f(x) # (B, T, C)
@@ -160,7 +158,7 @@ class Block(nn.Module):
 
         head_size = n_embd // n_head
         self.sa_block = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
-        self.ffwd = FeedFoward(n_embd, dropout)
+        self.ffwd = FeedForward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
@@ -218,20 +216,23 @@ class Head(nn.Module):
         return out
 
 
-class FeedFoward(nn.Module):
-    """Simple fully connected feed forward layer"""
+class FeedForward(nn.Module):
+    """1D Convolutional feedforward layer."""
 
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.ffwd = nn.Sequential(
-            nn.Linear(n_embd, 4 * n_embd),
-            nn.LayerNorm(4 * n_embd),
-            nn.GELU(),
-            nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(dropout)
-        )
+        self.conv1 = nn.Conv1d(n_embd, 4 * n_embd, kernel_size=1)
+        self.conv2 = nn.Conv1d(4 * n_embd, n_embd, kernel_size=1)
+        self.ln = nn.LayerNorm(n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.ffwd(x)
-
+        # x.shape = (batch_size, seq_length, n_embd)
+        x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
+        x = self.conv1(x)
+        x = F.gelu(x)
+        x = self.conv2(x)
+        x = self.dropout(x.transpose(1, 2))
+        x = self.ln(x)
+        return x

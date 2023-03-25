@@ -47,7 +47,7 @@ model.train()
 
 def main():
     if os.path.exists(model.transformer_model_name):
-        model.load(map_location=device)
+        model.load(True, map_location=device)
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
