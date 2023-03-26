@@ -223,13 +223,13 @@ class Head(nn.Module):
 
 
 class FeedForward(nn.Module):
-    """1D Convolutional feedforward layer."""
+    """1D Convolutional FeedForward layer"""
 
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.conv1 = nn.Conv1d(n_embd, 4 * n_embd, kernel_size=1)
-        self.conv2 = nn.Conv1d(4 * n_embd, n_embd, kernel_size=1)
+        self.conv1 = nn.Conv1d(n_embd, 4 * n_embd, kernel_size=1, bias=False)
+        self.conv2 = nn.Conv1d(4 * n_embd, n_embd, kernel_size=1, bias=False)
         self.ln = nn.LayerNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
