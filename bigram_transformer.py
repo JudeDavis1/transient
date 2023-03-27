@@ -230,7 +230,7 @@ class FeedForward(nn.Module):
 
         self.conv1 = nn.Conv1d(n_embd, 4 * n_embd, kernel_size=1, bias=False)
         self.conv2 = nn.Conv1d(4 * n_embd, n_embd, kernel_size=1, bias=False)
-        self.ln = nn.LayerNorm(n_embd)
+        self.ln = RMSNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
@@ -242,3 +242,17 @@ class FeedForward(nn.Module):
         x = self.dropout(x.transpose(1, 2))
         x = self.ln(x)
         return x
+
+class RMSNorm(torch.nn.Module):
+    """Normalization which is the same as the one LLaMA uses"""
+    def __init__(self, dim: int, eps: float = 3e-5):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x):
+        output = self._norm(x.float()).type_as(x)
+        return output * self.weight
