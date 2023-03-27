@@ -61,7 +61,7 @@ class BigramLanguageModel(nn.Module):
         ])
         
         # final layer norm
-        self.ln_f = nn.LayerNorm(n_embd)
+        self.ln_f = RMSNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
         # apply weights initialization
@@ -165,8 +165,8 @@ class Block(nn.Module):
         head_size = n_embd // n_head
         self.sa_block = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
         self.ffwd = FeedForward(n_embd, dropout)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
+        self.ln1 = RMSNorm(n_embd)
+        self.ln2 = RMSNorm(n_embd)
 
     def forward(self, x):
         x = self.ln1(x + self.sa_block(x))
