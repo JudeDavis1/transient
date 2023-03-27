@@ -62,7 +62,7 @@ class BigramLanguageModel(nn.Module):
         
         # final layer norm
         self.ln_f = nn.LayerNorm(n_embd)
-        self.lm_head = nn.Linear(n_embd, dataset.vocab_size)
+        self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
         # apply weights initialization
         self.apply(self._init_weights)
