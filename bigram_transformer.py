@@ -229,17 +229,17 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.conv1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
-        self.conv2 = nn.Linear(4 * n_embd, n_embd, bias=False)
+        self.fd1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
+        self.fd2 = nn.Linear(4 * n_embd, n_embd, bias=False)
         self.ln = nn.LayerNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         # x.shape = (batch_size, seq_length, n_embd)
         # x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
-        x = self.conv1(x)
+        x = self.fd1(x)
         x = F.gelu(x)
-        x = self.conv2(x)
+        x = self.fd2(x)
         x = self.dropout(x)
         x = self.ln(x)
         return x
