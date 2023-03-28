@@ -16,7 +16,7 @@ with torch.no_grad():
         n_layers=config.N_LAYERS
     )
     model.to_device(cpu_device)
-    model.load(map_location=cpu_device)
+    model.load(map_location=cpu_device, load_cache=True)
     model.eval()
 
     # generate from the model

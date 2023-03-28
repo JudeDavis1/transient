@@ -123,7 +123,10 @@ class BookCorpusDataset(Dataset):
         return l_idx
     
     def decode(self, l):
-        return self.corpus[l[0]]
+        if type(l) != int:
+            return self.corpus[l]
+        
+        return [self.corpus[idx] for idx in l]
 
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))

@@ -14,9 +14,9 @@ from bigram_transformer import *
 
 dataset.generate_batches()
 
-batch_size = 32
-learning_rate = 0.0003
-val_interval = 4
+batch_size = 16
+learning_rate = 0.0002
+val_interval = 5
 gradient_acc = 2
 epochs = int(sys.argv[1])
 
@@ -41,7 +41,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.1
+    dropout=0.2
 ).to_device(device)
 model.train()
 
@@ -52,6 +52,7 @@ def main():
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95), eps=1e-4)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=10)
 
     t = tqdm(range(epochs))
     val_loss = 0
@@ -74,12 +75,13 @@ def main():
 
         loss.backward()
         total_loss += loss.item()
+        scheduler.step()
 
         if (iter + 1) % gradient_acc == 0 or (iter + 1) == epochs:
             optimizer.step()
             optimizer.zero_grad(set_to_none=True)
 
-            t.set_description(f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'}")
+            t.set_description(f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}")
             total_loss = 0
 
     model.save()
@@ -95,7 +97,7 @@ def show_loss():
 
 
 @torch.no_grad()
-def get_val_loss(model: BigramLanguageModel, eval_iters=50) -> float:
+def get_val_loss(model: BigramLanguageModel, eval_iters=100) -> float:
     """Estimates the validation loss of current model"""
 
     model.eval()
@@ -125,6 +127,7 @@ def get_batch(split):
     for a, b in batch:
         x.append(a)
         y.append(b)
+
     
     x = torch.stack(x).to(device, non_blocking=True)
     y = torch.stack(y).to(device, non_blocking=True)

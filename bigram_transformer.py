@@ -34,7 +34,7 @@ class BigramLanguageModel(nn.Module):
         block_size = 128,
         n_embd = 384,
         n_layers = 8,
-        n_head = 6,
+        n_head = 8,
         dropout = 0.2,
     ):
         super().__init__()
@@ -61,7 +61,7 @@ class BigramLanguageModel(nn.Module):
         ])
         
         # final layer norm
-        self.ln_f = RMSNorm(n_embd)
+        self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
         # apply weights initialization
@@ -104,8 +104,9 @@ class BigramLanguageModel(nn.Module):
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
             if display:
-                scalar_idx = idx_next.flatten().to(cpu_dev).tolist()
-                sys.stdout.write(dataset.decode(scalar_idx))
+                scalar_idx = idx_next.flatten().to(cpu_dev).numpy()
+                
+                sys.stdout.write(dataset.decode(scalar_idx[0]))
                 sys.stdout.flush()
         
         if display: print()
@@ -165,8 +166,8 @@ class Block(nn.Module):
         head_size = n_embd // n_head
         self.sa_block = MultiHeadAttention(n_embd, head_size, n_head, block_size, dropout)
         self.ffwd = FeedForward(n_embd, dropout)
-        self.ln1 = RMSNorm(n_embd)
-        self.ln2 = RMSNorm(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
         x = self.ln1(x + self.sa_block(x))
@@ -228,18 +229,18 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.conv1 = nn.Conv1d(n_embd, 4 * n_embd, kernel_size=1, bias=False)
-        self.conv2 = nn.Conv1d(4 * n_embd, n_embd, kernel_size=1, bias=False)
-        self.ln = RMSNorm(n_embd)
+        self.conv1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
+        self.conv2 = nn.Linear(4 * n_embd, n_embd, bias=False)
+        self.ln = nn.LayerNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         # x.shape = (batch_size, seq_length, n_embd)
-        x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
+        # x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
         x = self.conv1(x)
         x = F.gelu(x)
         x = self.conv2(x)
-        x = self.dropout(x.transpose(1, 2))
+        x = self.dropout(x)
         x = self.ln(x)
         return x
 
