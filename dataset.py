@@ -12,7 +12,6 @@ import nltk
 import string
 import asyncio
 import warnings
-import torch
 import numpy as np
 
 from tqdm import tqdm
@@ -72,6 +71,10 @@ class BookCorpusDataset(Dataset):
         self.corpus = sorted(list(set([*tokenized, ' ', '\n', '"', '\\', *string.punctuation])))
         self.vocab_size = len(self.corpus)
 
+        # sets of features and labels
+        self.x_data = []
+        self.y_data = []
+
         if just_corpus: return
 
         # the list of data in (train_x, train_y) format
@@ -79,10 +82,12 @@ class BookCorpusDataset(Dataset):
         if os.path.exists(self.train_data_file):
             print(f'Loading training data: {self.train_data_file}')
             self.train_data: np.ndarray = np.load(self.train_data_file)
+            print(self.train_data.shape)
             return
         self.limit = float('inf')
 
         self.train_data = np.array(self.encode(tokenized, self.limit))
+
         np.save(self.train_data_file, self.train_data)
         print('All elements exist:', all(self.train_data))
         print(len(self.train_data))
@@ -90,16 +95,29 @@ class BookCorpusDataset(Dataset):
 
     def generate_batches(self):
         beginning = 0
-        last_idx = self.chunk_size
+        next_idx = self.chunk_size
 
         while True:
-            sample = self._get_batch(beginning, last_idx)
+            sample = self._get_batch(beginning, next_idx)
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
+
+            # add features
+            self.x_data.append(sample[0])
+            # add labels
+            self.y_data.append(sample[1])
+
+            # add pairs
             self.prep_data.append(sample)
 
-            beginning = last_idx + 1
-            last_idx += self.chunk_size + 1
+            beginning = next_idx
+            next_idx =  beginning + self.chunk_size
+    
+    def _get_batch(self, beginning, next_idx):
+        starting_phrase = self.train_data[beginning: next_idx]
+        target_word = self.train_data[next_idx: next_idx + self.chunk_size]
+
+        return (starting_phrase, target_word)
     
     def tokenize(self, text):
         return self.tokenizer.tokenize(text)
@@ -122,20 +140,14 @@ class BookCorpusDataset(Dataset):
         
         return l_idx
     
-    def decode(self, l):
-        if type(l) != int:
+    def decode(self, l, idx=True):
+        if idx:
             return self.corpus[l]
         
         return [self.corpus[idx] for idx in l]
 
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(load_corpus('data', just_contents=just_contents))
-
-    def _get_batch(self, beginning, last_idx):
-        starting_phrase = torch.tensor(self.train_data[beginning:last_idx], dtype=torch.long)
-        target_word = torch.tensor(self.train_data[last_idx + 1:last_idx + 1 + self.chunk_size], dtype=torch.long)
-
-        return (starting_phrase, target_word)
 
     def __getitem__(self, index):
         return self.prep_data[index]

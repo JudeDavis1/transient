@@ -2,6 +2,7 @@ import os
 import sys
 import random
 import contextlib
+import numpy as np
 
 from tqdm import tqdm
 from torch.backends import mps
@@ -41,7 +42,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.2
+    dropout=0.1
 ).to_device(device)
 model.train()
 
@@ -119,21 +120,15 @@ def get_val_loss(model: BigramLanguageModel, eval_iters=100) -> float:
 # data loading
 def get_batch(split):
     ds = train_data if split == 'train' else val_data
+    batch = [ds[random.randint(0, len(ds) - 1)] for _ in range(batch_size)]
+
     x = []
     y = []
-    idx = random.randint(0, len(ds) - 1)
-    batch = [ds[idx] for _ in range(batch_size)]
-
     for a, b in batch:
         x.append(a)
         y.append(b)
 
-    
-    x = torch.stack(x).to(device, non_blocking=True)
-    y = torch.stack(y).to(device, non_blocking=True)
-
-
-    return x, y
+    return torch.from_numpy(np.array(x)).to(device), torch.from_numpy(np.array(y)).to(device)
 
 if __name__ == '__main__':
     main()

@@ -19,9 +19,6 @@ with torch.no_grad():
     model.load(map_location=cpu_device, load_cache=True)
     model.eval()
 
-    # generate from the model
-    context = torch.zeros((1, 10), dtype=torch.long, device=cpu_device)
-
     while True:
         context_str = input('> ')
         context = torch.tensor([dataset.encode(
