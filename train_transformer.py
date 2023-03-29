@@ -20,6 +20,7 @@ learning_rate = 0.00025
 val_interval = 5
 gradient_acc = 4
 epochs = int(sys.argv[1])
+use_mixed_precision = False
 
 val_loss_history = []
 training_loss_history = []
@@ -62,7 +63,7 @@ def main():
         xb, yb = get_batch('train')
 
         with (
-            torch.autocast(model.device) if model.device == 'cuda'
+                torch.autocast(model.device) if use_mixed_precision and model.device == 'cuda'
             else contextlib.nullcontext()
         ):
             if (iter + 1) % val_interval == 0:
