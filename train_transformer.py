@@ -15,10 +15,10 @@ from bigram_transformer import *
 
 dataset.generate_batches()
 
-batch_size = 16
-learning_rate = 0.0002
+batch_size = 32
+learning_rate = 0.00025
 val_interval = 5
-gradient_acc = 2
+gradient_acc = 4
 epochs = int(sys.argv[1])
 
 val_loss_history = []
@@ -31,7 +31,7 @@ if mps.is_built():
 
 # train and test splits
 data = dataset.prep_data
-n = int(0.9 * len(data))
+n = int(0.97 * len(data))
 train_data = data[:n]
 val_data = data[n:]
 
@@ -42,7 +42,7 @@ model = BigramLanguageModel(
     n_embd=config.N_EMBD,
     n_layers=config.N_LAYERS,
     n_head=config.N_HEAD,
-    dropout=0.1
+    dropout=0.2
 ).to_device(device)
 model.train()
 
@@ -52,7 +52,7 @@ def main():
 
     # print the number of parameters in the model
     print(sum(p.numel() for p in model.parameters()) // 1_000_000, 'M parameters')
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95), eps=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.98), eps=1e-4)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=10)
 
     t = tqdm(range(epochs))
@@ -98,7 +98,7 @@ def show_loss():
 
 
 @torch.no_grad()
-def get_val_loss(model: BigramLanguageModel, eval_iters=100) -> float:
+def get_val_loss(model: BigramLanguageModel, eval_iters=50) -> float:
     """Estimates the validation loss of current model"""
 
     model.eval()
