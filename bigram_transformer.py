@@ -229,8 +229,8 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.fd1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
-        self.fd2 = nn.Linear(4 * n_embd, n_embd, bias=False)
+        self.fd1 = nn.Linear(n_embd, 4 * n_embd)
+        self.fd2 = nn.Linear(4 * n_embd, n_embd)
         self.ln = nn.LayerNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
