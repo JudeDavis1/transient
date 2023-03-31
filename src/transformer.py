@@ -24,7 +24,7 @@ vocab_size = dataset.vocab_size
 print("Vocab size:", vocab_size)
 
 
-class BigramLanguageModel(nn.Module):
+class TransformerModel(nn.Module):
     def __init__(
         self,
         block_size=128,

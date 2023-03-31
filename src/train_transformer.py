@@ -9,7 +9,7 @@ from torch.backends import mps
 from tqdm import tqdm
 
 import config
-from bigram_transformer import *
+from transformer import *
 
 dataset.generate_batches()
 
@@ -32,7 +32,7 @@ def main():
     args: HyperparamArgs = parse_arguments()
 
     # model with hyperparams
-    model = BigramLanguageModel(
+    model = TransformerModel(
         block_size=config.BLOCK_SIZE,
         n_embd=config.N_EMBD,
         n_layers=config.N_LAYERS,
@@ -100,7 +100,7 @@ def show_loss(epochs):
 
 
 @torch.no_grad()
-def get_val_loss(model: BigramLanguageModel, batch_size, eval_iters=50) -> float:
+def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
     """Estimates the validation loss of current model"""
 
     model.eval()
