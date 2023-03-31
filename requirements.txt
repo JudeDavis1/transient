@@ -6,3 +6,4 @@ colorama
 bs4
 pytest
 nltk
+argparse

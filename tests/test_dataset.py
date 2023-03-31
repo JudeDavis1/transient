@@ -2,14 +2,13 @@
 
 import pytest
 
-from ..dataset import BookCorpusDataset
+from ..src.dataset import BookCorpusDataset
 
 
 @pytest.fixture()
 def dataset():
     dataset = BookCorpusDataset()
     return dataset
-
 
 
 class TestTokenizer:
