@@ -2,7 +2,9 @@ import sys
 
 import config
 import logger
-from transformer import *
+
+from .transformer import *
+
 
 with torch.no_grad():
     cpu_device = torch.device("cpu")

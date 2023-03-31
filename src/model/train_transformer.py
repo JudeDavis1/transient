@@ -8,8 +8,11 @@ from matplotlib import pyplot as plt
 from torch.backends import mps
 from tqdm import tqdm
 
-import config
-from transformer import *
+
+os.environ['PYTHONPATH'] = "../:$PYTHONPATH"
+
+from src.config import Config
+from .transformer import *
 
 dataset.generate_batches()
 
@@ -33,10 +36,10 @@ def main():
 
     # model with hyperparams
     model = TransformerModel(
-        block_size=config.BLOCK_SIZE,
-        n_embd=config.N_EMBD,
-        n_layers=config.N_LAYERS,
-        n_head=config.N_HEAD,
+        block_size=Config.BLOCK_SIZE,
+        n_embd=Config.N_EMBD,
+        n_layers=Config.N_LAYERS,
+        n_head=Config.N_HEAD,
         dropout=args.dropout,
     ).to_device(device)
     model.train()

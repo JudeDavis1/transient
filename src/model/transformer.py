@@ -13,12 +13,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 """Local"""
-import config
+from ..config import Config
 import logger
-from dataset import BookCorpusDataset
+from ..dataset.dataset import BookCorpusDataset
 
 
-dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
+dataset = BookCorpusDataset(chunk_size=Config.BLOCK_SIZE)
 
 # unique characters that occur in this text
 tokens = dataset.corpus

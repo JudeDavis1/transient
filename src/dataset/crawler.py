@@ -13,7 +13,7 @@ def test():
     crawler = Crawler()
     crawler.crawl("https://en.wikipedia.org/wiki/Chess", max_depth=500)
 
-    with io.open("../data/wiki.txt", "a", encoding="utf-8") as f:
+    with io.open("../../data/wiki.txt", "a", encoding="utf-8") as f:
         f.writelines(crawler.get_text())
 
 
