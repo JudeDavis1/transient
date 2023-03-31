@@ -1,6 +1,6 @@
 SORT_DIR="$1"
 if [ -z "$SORT_DIR" ]; then
-    echo "Usage: run fixup {directory e.g. .}"
+    echo "Usage: run linter {directory e.g. .}"
     exit 1
 fi
 

@@ -24,4 +24,4 @@ isort = "*"
 python_version = "3.11"
 
 [scripts]
-fixup = "sh ./scripts/fixup.sh"
+linter = "sh ./scripts/linter.sh"
