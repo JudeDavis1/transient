@@ -156,7 +156,7 @@ class HyperparamArgs:
 def parse_arguments() -> HyperparamArgs:
     """Parse argument switches from command line"""
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Train the transformer base-model on text")
     parser.add_argument(
         "-e",
         "--epochs",
