@@ -41,7 +41,7 @@ for book in pbar:
             # cache verses into a file to save
             save_verses("\n".join(verses))
         except KeyboardInterrupt:
-            print("Exiting")
+            logger.info("Exiting")
             exit(0)
         except:
             continue

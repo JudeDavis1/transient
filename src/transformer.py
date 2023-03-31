@@ -13,15 +13,16 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-import config
-from dataset import BookCorpusDataset
+from . import config
+from . import logger
+from .dataset import BookCorpusDataset
 
 dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
 
 # unique characters that occur in this text
 tokens = dataset.corpus
 vocab_size = dataset.vocab_size
-print("Vocab size:", vocab_size)
+logger.info("Vocab size:", vocab_size)
 
 
 class TransformerModel(nn.Module):
@@ -117,12 +118,12 @@ class TransformerModel(nn.Module):
 
     def to_device(self, device: torch.device):
         self.device = device
-        print(f"Using {str(device).upper()} backend...")
+        log(f"Using {str(device).upper()} backend...")
 
         return self.to(device)
 
     def load(self, load_cache=False, **kwargs):
-        print("[*] Loading model:", self.transformer_model_name)
+        logger.info("[*] Loading model:", self.transformer_model_name)
 
         if load_cache:
             if os.path.exists(self.cache_dir):
@@ -134,7 +135,7 @@ class TransformerModel(nn.Module):
             self.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
 
     def save(self, save_cache=False):
-        print("[*] Saving model:", self.transformer_model_name)
+        logger.info("[*] Saving model:", self.transformer_model_name)
 
         torch.save(self.state_dict(), self.cache_dir)
         with tarfile.open(self.transformer_model_name, "w:gz") as f:

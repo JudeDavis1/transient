@@ -87,17 +87,17 @@ class BookCorpusDataset(Dataset):
         # the list of data in (train_x, train_y) format
         self.prep_data = []
         if os.path.exists(self.train_data_file):
-            print(f"Loading training data: {self.train_data_file}")
+            logger.info(f"Loading training data: {self.train_data_file}")
             self.train_data: np.ndarray = np.load(self.train_data_file)
-            print(self.train_data.shape)
+            logger.info(self.train_data.shape)
             return
         self.limit = float("inf")
 
         self.train_data = np.array(self.encode(tokenized, self.limit))
 
         np.save(self.train_data_file, self.train_data)
-        print("All elements exist:", all(self.train_data))
-        print(len(self.train_data))
+        logger.info("All elements exist:", all(self.train_data))
+        logger.info(len(self.train_data))
 
     def generate_batches(self):
         beginning = 0
