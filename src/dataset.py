@@ -154,7 +154,7 @@ class BookCorpusDataset(Dataset):
 
     def _run_load_corpus(self, just_contents=False):
         return self.loop.run_until_complete(
-            load_corpus("data", just_contents=just_contents)
+            load_corpus("../data", just_contents=just_contents)
         )
 
     def __getitem__(self, index):
@@ -168,8 +168,7 @@ async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:
     corpus = ""
     files_str = os.listdir(text_file_dir)
     files = [
-        open(os.path.join("../", text_file_dir, f), "r", encoding="utf-8")
-        for f in files_str
+        open(os.path.join(text_file_dir, f), "r", encoding="utf-8") for f in files_str
     ]
 
     logger.INFO("Collecting tokens from:\n")

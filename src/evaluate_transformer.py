@@ -1,6 +1,5 @@
 import sys
 
-
 import config
 import logger
 from bigram_transformer import *
