@@ -4,6 +4,8 @@ from typing import Tuple
 import requests
 from tqdm import tqdm
 
+from . import logger
+
 first_book = 50
 max_books = 66
 cache_interval = 10

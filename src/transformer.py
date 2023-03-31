@@ -4,7 +4,6 @@ All relevant modules for the transformer architecture.
 
 """
 
-
 import os
 import sys
 import tarfile
@@ -13,9 +12,11 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from . import config
-from . import logger
-from .dataset import BookCorpusDataset
+"""Local"""
+import config
+import logger
+from dataset import BookCorpusDataset
+
 
 dataset = BookCorpusDataset(chunk_size=config.BLOCK_SIZE)
 
@@ -118,7 +119,7 @@ class TransformerModel(nn.Module):
 
     def to_device(self, device: torch.device):
         self.device = device
-        log(f"Using {str(device).upper()} backend...")
+        logger.info(f"Using {str(device).upper()} backend...")
 
         return self.to(device)
 

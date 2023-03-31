@@ -1,9 +1,9 @@
+import os
+import numpy as np
+import random
 import argparse
 import contextlib
-import os
-import random
 
-import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
 from tqdm import tqdm
@@ -45,7 +45,7 @@ def main():
         model.load(True, map_location=device)
 
     # print the number of parameters in the model
-    print(sum(p.numel() for p in model.parameters()) // 1_000_000, "M parameters")
+    logger.info(sum(p.numel() for p in model.parameters()) // 1_000_000, "M parameters")
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-4
     )
