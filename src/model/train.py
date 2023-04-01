@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from src.config import Config
 from .transformer import *
+from src import logger
 
 
 dataset.generate_batches()
@@ -31,6 +32,7 @@ if mps.is_built():
 
 def main():
     args: HyperparamArgs = parse_arguments()
+    logger.special(args)
 
     # model with hyperparams
     model = TransformerModel(
@@ -147,6 +149,16 @@ class HyperparamArgs:
         self.gradient_acc: int = namespace.gradient_acc
         self.use_mixed_precision: bool = namespace.use_mixed_precision
         self.dropout: float = namespace.dropout
+    
+    def __repr__(self):
+        return f"""Hyperparams:
+        lr: {self.lr}
+        epochs: {self.epochs}
+        batch_size: {self.batch_size}
+        gradient_acc: {self.gradient_acc}
+        use_mixed_precision: {self.use_mixed_precision}
+        dropout: {self.dropout}
+        """
 
 
 def parse_arguments() -> HyperparamArgs:
