@@ -8,11 +8,9 @@ from matplotlib import pyplot as plt
 from torch.backends import mps
 from tqdm import tqdm
 
-
-os.environ['PYTHONPATH'] = "../:$PYTHONPATH"
-
 from src.config import Config
 from .transformer import *
+
 
 dataset.generate_batches()
 

@@ -10,6 +10,30 @@ first_book = 50
 max_books = 66
 cache_interval = 10
 
+def main():
+    pbar = tqdm(range(first_book, max_books + 1))
+    for book in pbar:
+        n_chapters_req = requests.get(
+            f"https://wol-api.onrender.com/api/v1/bibleVerses/getNumberOfChapters/{book}"
+        )
+        n_chapters = int(n_chapters_req.json()["data"])
+
+        for chapter in range(1, n_chapters + 1):
+            verses_json = requests.get(
+                f"https://wol-api.onrender.com/api/v1/bibleVerses/getVersesInChapter/{book}/{chapter}"
+            )
+            verses = verses_json.json()["data"]
+
+            try:
+                pbar.set_description(f"{book}/{chapter}")
+
+                # cache verses into a file to save
+                save_verses("\n".join(verses))
+            except KeyboardInterrupt:
+                logger.info("Exiting")
+                exit(0)
+            except:
+                continue
 
 def getVerse(b: int, c: int, v: int) -> Tuple[dict, int]:
     """Get verse text: b: Book, c: Chapter, v: Verse"""
@@ -24,26 +48,6 @@ def save_verses(verses: list):
         f.writelines(verses)
 
 
-pbar = tqdm(range(first_book, max_books + 1))
-for book in pbar:
-    n_chapters_req = requests.get(
-        f"https://wol-api.onrender.com/api/v1/bibleVerses/getNumberOfChapters/{book}"
-    )
-    n_chapters = int(n_chapters_req.json()["data"])
+if __name__ == '__main__':
+    main()
 
-    for chapter in range(1, n_chapters + 1):
-        verses_json = requests.get(
-            f"https://wol-api.onrender.com/api/v1/bibleVerses/getVersesInChapter/{book}/{chapter}"
-        )
-        verses = verses_json.json()["data"]
-
-        try:
-            pbar.set_description(f"{book}/{chapter}")
-
-            # cache verses into a file to save
-            save_verses("\n".join(verses))
-        except KeyboardInterrupt:
-            logger.info("Exiting")
-            exit(0)
-        except:
-            continue

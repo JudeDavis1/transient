@@ -6,7 +6,7 @@ from typing import List, Union
 import bs4
 import requests
 
-import logger
+from .. import logger
 
 
 def test():

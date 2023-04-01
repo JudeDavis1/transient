@@ -13,7 +13,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 """Local"""
-from ..config import Config
+from src.config import Config
 from .. import logger
 from ..dataset.dataset import BookCorpusDataset
 
@@ -46,8 +46,8 @@ class TransformerModel(nn.Module):
 
         # default to CPU
         self.device = torch.device("cpu")
-        self.cache_dir = "../model_cache"
-        self.transformer_model_name = f"../models/BT-{n_head}Head-{n_layers}Layer.pt"
+        self.cache_dir = "./model_cache"
+        self.transformer_model_name = f"./models/BT-{n_head}Head-{n_layers}Layer.pt"
 
         # each token directly reads off the logits for the next token from a lookup table
         self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
