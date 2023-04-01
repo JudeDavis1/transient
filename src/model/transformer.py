@@ -14,7 +14,7 @@ from torch.nn import functional as F
 
 """Local"""
 from ..config import Config
-import logger
+from .. import logger
 from ..dataset.dataset import BookCorpusDataset
 
 

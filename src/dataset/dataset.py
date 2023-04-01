@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 warnings.filterwarnings("ignore")
 
-import logger
+from .. import logger
 
 
 class BookCorpusDataset(Dataset):
