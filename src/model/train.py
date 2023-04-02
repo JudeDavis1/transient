@@ -1,17 +1,17 @@
-import os
-import numpy as np
-import random
 import argparse
 import contextlib
+import os
+import random
 
+import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
 from tqdm import tqdm
 
-from src.config import Config
-from .transformer import *
 from src import logger
+from src.config import Config
 
+from .transformer import *
 
 dataset.generate_batches()
 
@@ -149,7 +149,7 @@ class HyperparamArgs:
         self.gradient_acc: int = namespace.gradient_acc
         self.use_mixed_precision: bool = namespace.use_mixed_precision
         self.dropout: float = namespace.dropout
-    
+
     def __repr__(self):
         return f"""Hyperparams:
         lr: {self.lr}

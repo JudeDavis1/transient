@@ -22,7 +22,9 @@ def warn(text, *args, **kwargs):
 
 
 def WARN(text, *args, **kwargs):
-    print(Fore.YELLOW + "[TRANSIENT] WARNING: " + str(text) + Fore.RESET, *args, **kwargs)
+    print(
+        Fore.YELLOW + "[TRANSIENT] WARNING: " + str(text) + Fore.RESET, *args, **kwargs
+    )
 
 
 def critical(text, *args, **kwargs):

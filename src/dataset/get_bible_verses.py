@@ -10,6 +10,7 @@ first_book = 50
 max_books = 66
 cache_interval = 10
 
+
 def main():
     pbar = tqdm(range(first_book, max_books + 1))
     for book in pbar:
@@ -35,6 +36,7 @@ def main():
             except:
                 continue
 
+
 def getVerse(b: int, c: int, v: int) -> Tuple[dict, int]:
     """Get verse text: b: Book, c: Chapter, v: Verse"""
     req = requests.get(
@@ -48,6 +50,5 @@ def save_verses(verses: list):
         f.writelines(verses)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

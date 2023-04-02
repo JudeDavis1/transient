@@ -1,4 +1,1 @@
-from .src import (
-    model,
-    dataset
-)
+from .src import dataset, model

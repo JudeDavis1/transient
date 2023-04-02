@@ -1,8 +1,7 @@
 import sys
 
-from ..config import Config
 from .. import logger
-
+from ..config import Config
 from .transformer import *
 
 
@@ -27,5 +26,5 @@ def main():
             model.generate(context, max_new_tokens=int(sys.argv[1]), display=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
