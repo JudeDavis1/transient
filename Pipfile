@@ -13,6 +13,7 @@ bs4 = "*"
 pytest = "*"
 nltk = "*"
 argparse = "*"
+requests = "*"
 
 [dev-packages]
 autoflake = "*"
@@ -25,3 +26,5 @@ python_version = "3.11"
 
 [scripts]
 linter = "sh ./scripts/linter.sh"
+train = "python -m src.model.train"
+eval = "python -m src.model.evaluate"
