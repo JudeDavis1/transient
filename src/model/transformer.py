@@ -177,6 +177,7 @@ class Block(nn.Module):
         self.ln2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
+        """Add residual connections around each block"""
         x = self.ln1(x + self.sa_block(x))
         x = self.ln2(x + self.ffwd(x))
 
