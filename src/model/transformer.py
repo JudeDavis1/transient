@@ -6,6 +6,7 @@ All relevant modules for the transformer architecture.
 
 import os
 import sys
+import math
 import tarfile
 
 import torch
@@ -32,7 +33,7 @@ class TransformerModel(nn.Module):
         block_size=128,
         n_embd=384,
         n_layers=8,
-        n_head=8,
+        n_heads=8,
         dropout=0.2,
     ):
         super().__init__()
@@ -41,13 +42,13 @@ class TransformerModel(nn.Module):
         self.block_size = block_size
         self.n_embd = n_embd
         self.n_layers = n_layers
-        self.n_head = n_head
+        self.n_heads = n_heads
         self.dropout = dropout
 
         # default to CPU
         self.device = torch.device("cpu")
         self.cache_dir = "./model_cache"
-        self.transformer_model_name = f"./models/BT-{n_head}Head-{n_layers}Layer.pt"
+        self.transformer_model_name = f"./models/BT-{n_heads}Head-{n_layers}Layer.pt"
 
         # each token directly reads off the logits for the next token from a lookup table
         self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
@@ -56,7 +57,7 @@ class TransformerModel(nn.Module):
             *[
                 Block(
                     n_embd,
-                    n_head=n_head,
+                    n_heads=n_heads,
                     dropout=self.dropout,
                     block_size=self.block_size,
                 )
@@ -163,13 +164,13 @@ class TransformerModel(nn.Module):
 class Block(nn.Module):
     """Transformer block: communication followed by computation"""
 
-    def __init__(self, n_embd, n_head, block_size, dropout):
-        # n_embd: embedding dimension, n_head: the number of heads we'd like
+    def __init__(self, n_embd, n_heads, block_size, dropout):
+        # n_embd: embedding dimension, n_heads: the number of heads we'd like
         super().__init__()
 
-        head_size = n_embd // n_head
+        head_size = n_embd // n_heads
         self.sa_block = MultiHeadAttention(
-            n_embd, head_size, n_head, block_size, dropout
+            n_embd, head_size, n_heads, block_size, dropout
         )
         self.ffwd = FeedForward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
@@ -185,21 +186,43 @@ class Block(nn.Module):
 class MultiHeadAttention(nn.Module):
     """Multiple heads of self-attention"""
 
-    def __init__(self, n_embd, head_size, num_heads, block_size, dropout):
+    def __init__(self, n_embd, head_size, n_heads, block_size, dropout):
         super().__init__()
 
-        self.heads = nn.ModuleList(
-            [
-                Head(n_embd, head_size, block_size=block_size, dropout=dropout)
-                for _ in range(num_heads)
-            ]
-        )
-        self.proj = nn.Linear(n_embd, n_embd)
+        self.n_heads = n_heads
+        self.head_size = head_size
+
         self.dropout = nn.Dropout(dropout)
+        self.key = nn.Linear(n_embd, n_heads * head_size, bias=False)
+        self.query = nn.Linear(n_embd, n_heads * head_size, bias=False)
+        self.value = nn.Linear(n_embd, n_heads * head_size, bias=False)
+        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+
+        self.proj = nn.Linear(self.n_heads * self.head_size, n_embd)
 
     def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
+        batch_size = x.size(0)
+        B, T, C = x.shape
+
+        k = self.key(x).view(batch_size, T, self.n_heads, self.head_size)
+        q = self.query(x).view(batch_size, T, self.n_heads, self.head_size)
+        v = self.value(x).view(batch_size, T, self.n_heads, self.head_size)
+        k = k.transpose(1, 2) # (B, nh, T, hs)
+        q = q.transpose(1, 2) # (B, nh, T, hs)
+        v = v.transpose(1, 2) # (B, nh, T, hs)
+
+        # compute attention scores
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size ** 0.5)
+        scores = scores.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
+        attn = F.softmax(scores, dim=-1)
+        attn = self.dropout(attn)
+
+        # compute values and attention output
+        out = torch.matmul(attn, v).view(batch_size, T, self.n_heads * self.head_size)
+
+        # join heads concatenating along the last dimension
+        out = out.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.head_size)
+        out = self.proj(out)
 
         return out
 

@@ -12,7 +12,7 @@ $ pipenv shell
 ```
 - Then in the root directory:
 ```
-$ python -m src.model.train_transformer (optional args)
+$ python -m src.model.train (optional args)
 ```
 
 

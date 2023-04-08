@@ -39,7 +39,7 @@ def main():
         block_size=Config.BLOCK_SIZE,
         n_embd=Config.N_EMBD,
         n_layers=Config.N_LAYERS,
-        n_head=Config.N_HEAD,
+        n_heads=Config.N_HEADS,
         dropout=args.dropout,
     ).to_device(device)
     model.train()

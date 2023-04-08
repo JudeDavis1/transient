@@ -11,7 +11,7 @@ def main():
         model = TransformerModel(
             block_size=Config.BLOCK_SIZE,
             n_embd=Config.N_EMBD,
-            n_head=Config.N_HEAD,
+            n_heads=Config.N_HEADS,
             n_layers=Config.N_LAYERS,
         )
         model.to_device(cpu_device)
