@@ -98,6 +98,9 @@ class TransientRunner:
             print()
 
         return idx
+    
+    def is_parallel(self):
+        return isinstance(self.model, nn.DataParallel)
 
     def to_device(self, device: torch.device):
         self.device = device
@@ -118,6 +121,9 @@ class TransientRunner:
 
     def save(self, save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
+        
+        if self.is_parallel():
+            self.model = self.model.module
 
         torch.save(self.model.state_dict(), self.cache_dir)
         with tarfile.open(self.transformer_model_name, "w:gz") as f:
