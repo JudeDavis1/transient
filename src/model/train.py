@@ -74,12 +74,12 @@ def main():
             # evaluate the loss
             _, loss = runner.forward(xb, yb)
             val_loss_history.append(val_loss)
-            training_loss_history.append(loss.sum().item())
+            training_loss_history.append(loss.mean().item())
             loss: torch.Tensor = loss / args.gradient_acc
 
-        loss.sum().backward()
+        loss.mean().backward()
         nn.utils.clip_grad.clip_grad_norm(runner.model.parameters(), 1e-3)
-        total_loss += loss.sum().item()
+        total_loss += loss.mean().item()
         scheduler.step()
 
         if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
@@ -116,7 +116,7 @@ def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
         X, Y = get_batch("val", batch_size)
 
         _, loss = model(X, Y, device)
-        val_loss += loss.sum().item()
+        val_loss += loss.mean().item()
 
     # get the mean
     val_loss /= eval_iters
