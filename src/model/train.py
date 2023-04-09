@@ -113,7 +113,7 @@ def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
     for _ in range(eval_iters):
         X, Y = get_batch("val", batch_size)
 
-        _, loss = model(X, Y)
+        _, loss = model(X, Y, device)
         val_loss += loss.item()
 
     # get the mean
@@ -135,8 +135,13 @@ def get_batch(split, batch_size):
         x.append(a)
         y.append(b)
 
-    return torch.from_numpy(np.array(x)).to(device), torch.from_numpy(np.array(y)).to(
-        device
+    return (
+        torch.from_numpy(
+            np.array(x)
+        ).to(device),
+        torch.from_numpy(
+            np.array(y)
+        ).to(device)
     )
 
 

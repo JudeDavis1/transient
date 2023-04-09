@@ -56,16 +56,18 @@ class TransientRunner:
             dropout=self.dropout,
         )
 
-        # use multiple GPUs if available
-        if torch.cuda.device_count() > 1:
-            logger.info("Using", torch.cuda.device_count(), "GPUs...")
-            self.model = nn.DataParallel(self.model)
-
         # apply weights initialization
         self.model.apply(self._init_weights)
     
     def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
         return self.model(x, targets, device=self.device)
+    
+    def use_parallel(self):
+        """Use multiple GPUs if available"""
+
+        if torch.cuda.device_count() > 1:
+            logger.info("Using", torch.cuda.device_count(), "GPUs...")
+            self.model = nn.DataParallel(self.model)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         cpu_dev = torch.device("cpu")
@@ -100,7 +102,6 @@ class TransientRunner:
         self.device = device
         self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
-
 
     def load(self, load_cache=False, **kwargs):
         logger.info("[*] Loading model:", self.transformer_model_name)
@@ -176,7 +177,7 @@ class TransformerModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
-    def forward(self, idx, targets=None, device='cpu'):
+    def forward(self, idx, targets=None, device=None):
         B, T = idx.shape
 
         # idx and targets are both (B, T) tensor of integers
