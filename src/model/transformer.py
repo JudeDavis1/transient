@@ -113,7 +113,7 @@ class TransientRunner:
         if load_cache:
             if os.path.exists(self.cache_dir):
                 # load the uncompressed copy
-                self.model.load_state_dict(torch.load(self.cache_dir))
+                self.model.load_state_dict(torch.load(self.cache_dir, **kwargs))
                 return
 
         with tarfile.open(self.transformer_model_name, "r:gz") as f:
