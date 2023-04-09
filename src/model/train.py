@@ -78,7 +78,7 @@ def main():
 
         loss.sum().backward()
         nn.utils.clip_grad.clip_grad_norm(runner.model.parameters(), 1e-3)
-        total_loss += loss.item()
+        total_loss += loss.sum().item()
         scheduler.step()
 
         if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
