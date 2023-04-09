@@ -1,7 +1,6 @@
 Will update soon...
 
-
-# To train:
+## For the following tasks:
 - Make sure you're in the root project directory
 - Start:
 ```
@@ -10,9 +9,15 @@ $ pipenv install --dev
 $ pipenv shell
 ...
 ```
-- Then in the root directory:
+
+# Training:
 ```
-$ python -m src.model.train (optional args)
+$ pipenv run train (optional args)
+```
+
+# Inference:
+```
+$ pipenv run eval (optional args)
 ```
 
 
