@@ -181,7 +181,7 @@ class TransformerModel(nn.Module):
         )
 
         # final layer norm
-        self.ln_f = nn.LayerNorm(n_embd)
+        self.ln_f = RMSNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
     def forward(self, idx, targets=None, device=None):
@@ -218,8 +218,8 @@ class Block(nn.Module):
             n_embd, head_size, n_heads, block_size, dropout
         )
         self.ffwd = FeedForward(n_embd, dropout)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
+        self.ln1 = RMSNorm(n_embd)
+        self.ln2 = RMSNorm(n_embd)
 
     def forward(self, x) -> torch.Tensor:
         """Add residual connections around each block"""
@@ -244,7 +244,7 @@ class MultiHeadAttention(nn.Module):
         self.value = nn.Linear(n_embd, n_heads * head_size, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
-        self.proj = nn.Linear(self.n_heads * self.head_size, n_embd)
+        self.proj = nn.Linear(self.n_heads * self.head_size, n_embd, bias=False)
 
     def forward(self, x) -> torch.Tensor:
         batch_size = x.size(0)
@@ -283,9 +283,9 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.fd1 = nn.Linear(n_embd, 4 * n_embd)
-        self.fd2 = nn.Linear(4 * n_embd, n_embd)
-        self.ln = nn.LayerNorm(n_embd)
+        self.fd1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
+        self.fd2 = nn.Linear(4 * n_embd, n_embd, bias=False)
+        self.ln = RMSNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x) -> torch.Tensor:
