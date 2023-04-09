@@ -22,5 +22,4 @@ class TestTokenizer:
         ],
     )
     def test_single_phrase(self, dataset: BookCorpusDataset, test_case, expected):
-        print(dataset.tokenize(test_case) == expected)
         assert dataset.tokenize(test_case) == expected
