@@ -43,11 +43,12 @@ def main():
         dropout=args.dropout,
     )
     runner.to_device(device)
-    runner.use_parallel()
-    runner.model.train()
 
     if os.path.exists(runner.transformer_model_name):
         runner.load(True, map_location=device)
+    
+    runner.use_parallel()
+    runner.model.train()
 
     # print the number of parameters in the model
     logger.info(sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters")
