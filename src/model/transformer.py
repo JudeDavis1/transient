@@ -26,7 +26,8 @@ vocab_size = dataset.vocab_size
 logger.info("Vocab size:", vocab_size)
 
 
-class TransformerModel(nn.Module):
+class TransientRunner:
+
     def __init__(
         self,
         block_size=128,
@@ -35,8 +36,6 @@ class TransformerModel(nn.Module):
         n_heads=8,
         dropout=0.2,
     ):
-        super().__init__()
-
         # hyperparams
         self.block_size = block_size
         self.n_embd = n_embd
@@ -49,47 +48,21 @@ class TransformerModel(nn.Module):
         self.cache_dir = "./model_cache"
         self.transformer_model_name = f"./models/BT-{n_heads}Head-{n_layers}Layer.pt"
 
-        # each token directly reads off the logits for the next token from a lookup table
-        self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
-        self.position_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(
-            *[
-                Block(
-                    n_embd,
-                    n_heads=n_heads,
-                    dropout=self.dropout,
-                    block_size=self.block_size,
-                )
-                for _ in range(n_layers)
-            ]
+        self.model = TransformerModel(
+            block_size=self.block_size,
+            n_embd=self.n_embd,
+            n_layers=self.n_layers,
+            n_heads=self.n_heads,
+            dropout=self.dropout,
         )
 
-        # final layer norm
-        self.ln_f = nn.LayerNorm(n_embd)
-        self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
+        # use multiple GPUs if available
+        if torch.cuda.device_count() > 1:
+            logger.info("Using", torch.cuda.device_count(), "GPUs...")
+            self.model = nn.DataParallel(self.model)
 
         # apply weights initialization
-        self.apply(self._init_weights)
-
-    def forward(self, idx, targets=None):
-        B, T = idx.shape
-        # idx and targets are both (B, T) tensor of integers
-        token_embed = self.token_table(idx)  # (B, T, C)
-        pos_embed = self.position_table(torch.arange(T, device=self.device))  # (T, C)
-        x = token_embed + pos_embed  # (B, T, C)
-        x = self.blocks(x)  # (B, T, C)
-        x = self.ln_f(x)  # (B, T, C)
-        logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
-
-        if targets is None:
-            loss = None
-        else:
-            B, T, C = logits.shape
-            logits = logits.view(B * T, C)
-            targets = targets.view(B * T)
-            loss = F.cross_entropy(logits, targets)
-
-        return logits, loss
+        self.model.apply(self._init_weights)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         cpu_dev = torch.device("cpu")
@@ -98,12 +71,15 @@ class TransformerModel(nn.Module):
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -self.block_size :]
-            logits, _ = self(idx_cond)
+            logits, _ = self.model(idx_cond)
+
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
             probs = F.softmax(logits, dim=-1)  # (B, C)
+            
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
+            
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
             if display:
@@ -119,9 +95,9 @@ class TransformerModel(nn.Module):
 
     def to_device(self, device: torch.device):
         self.device = device
+        self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
 
-        return self.to(device)
 
     def load(self, load_cache=False, **kwargs):
         logger.info("[*] Loading model:", self.transformer_model_name)
@@ -129,16 +105,16 @@ class TransformerModel(nn.Module):
         if load_cache:
             if os.path.exists(self.cache_dir):
                 # load the uncompressed copy
-                self.load_state_dict(torch.load(self.cache_dir))
+                self.model.load_state_dict(torch.load(self.cache_dir))
                 return
 
         with tarfile.open(self.transformer_model_name, "r:gz") as f:
-            self.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
+            self.model.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
 
     def save(self, save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
 
-        torch.save(self.state_dict(), self.cache_dir)
+        torch.save(self.model.state_dict(), self.cache_dir)
         with tarfile.open(self.transformer_model_name, "w:gz") as f:
             # compression for transport
             f.add(self.cache_dir)
@@ -160,6 +136,66 @@ class TransformerModel(nn.Module):
                 m.bias.data.zero_()
 
 
+class TransformerModel(nn.Module):
+    def __init__(
+        self,
+        block_size=128,
+        n_embd=384,
+        n_layers=8,
+        n_heads=8,
+        dropout=0.2,
+    ):
+        super().__init__()
+
+        # hyperparams
+        self.block_size = block_size
+        self.n_embd = n_embd
+        self.n_layers = n_layers
+        self.n_heads = n_heads
+        self.dropout = dropout
+
+        # each token directly reads off the logits for the next token from a lookup table
+        self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
+        self.position_table = nn.Embedding(block_size, n_embd)
+        self.blocks = nn.Sequential(
+            *[
+                Block(
+                    n_embd,
+                    n_heads=n_heads,
+                    dropout=self.dropout,
+                    block_size=self.block_size,
+                )
+                for _ in range(n_layers)
+            ]
+        )
+
+        # final layer norm
+        self.ln_f = nn.LayerNorm(n_embd)
+        self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
+
+    def forward(self, idx, targets=None):
+        B, T = idx.shape
+        device = next(self.parameters()).device
+
+        # idx and targets are both (B, T) tensor of integers
+        token_embed = self.token_table(idx)  # (B, T, C)
+        pos_embed = self.position_table(torch.arange(T, device=device))  # (T, C)
+        x = token_embed + pos_embed  # (B, T, C)
+        x = self.blocks(x)  # (B, T, C)
+        x = self.ln_f(x)  # (B, T, C)
+        logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
+
+        if targets is None:
+            loss = None
+        else:
+            B, T, C = logits.shape
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
+            loss = F.cross_entropy(logits, targets)
+
+        return logits, loss
+
+
 class Block(nn.Module):
     """Transformer block: communication followed by computation"""
 
@@ -175,7 +211,7 @@ class Block(nn.Module):
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         """Add residual connections around each block"""
         x = self.ln1(x + self.sa_block(x))
         x = self.ln2(x + self.ffwd(x))
@@ -200,7 +236,7 @@ class MultiHeadAttention(nn.Module):
 
         self.proj = nn.Linear(self.n_heads * self.head_size, n_embd)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         batch_size = x.size(0)
         B, T, C = x.shape
 
@@ -231,40 +267,6 @@ class MultiHeadAttention(nn.Module):
         return out
 
 
-class Head(nn.Module):
-    """One head of self-attention"""
-
-    def __init__(self, n_embd, head_size, block_size, dropout):
-        super().__init__()
-
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        B, T, C = x.shape
-        k = self.key(x)  # (B, T, C)
-        q = self.query(x)  # (B, T, C)
-        v = self.value(x)  # (B, T, C)
-
-        # compute attention scores ("affinities")
-        attn_weights = (
-            q @ k.transpose(-2, -1) * C**-0.5
-        )  # (B, T, C) @ (B, C, T) -> (B, T, T)
-        attn_weights = attn_weights.masked_fill(
-            self.tril[:T, :T] == 0, float("-inf")
-        )  # (B, T, T)
-        attn_weights = F.softmax(attn_weights, dim=-1)  # (B, T, T)
-
-        # perform the weighted aggregation of the values
-        out = self.dropout(attn_weights) @ v  # (B, T, T) @ (B, T, C) -> (B, T, C)
-
-        return out
-
-
 class FeedForward(nn.Module):
     """1D Convolutional FeedForward layer"""
 
@@ -276,7 +278,7 @@ class FeedForward(nn.Module):
         self.ln = nn.LayerNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         # x.shape = (batch_size, seq_length, n_embd)
         # x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
         x = self.fd1(x)
@@ -292,12 +294,13 @@ class RMSNorm(torch.nn.Module):
 
     def __init__(self, dim: int, eps: float = 3e-5):
         super().__init__()
+        
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
 
-    def _norm(self, x):
+    def _norm(self, x) -> torch.Tensor:
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         output = self._norm(x.float()).type_as(x)
         return output * self.weight

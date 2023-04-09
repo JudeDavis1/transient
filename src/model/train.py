@@ -35,49 +35,48 @@ def main():
     logger.special(args)
 
     # model with hyperparams
-    model = TransformerModel(
+    runner = TransientRunner(
         block_size=Config.BLOCK_SIZE,
         n_embd=Config.N_EMBD,
         n_layers=Config.N_LAYERS,
         n_heads=Config.N_HEADS,
         dropout=args.dropout,
-    ).to_device(device)
-    model.train()
-    if torch.cuda.device_count() > 1:
-        model = nn.DataParallel(model)
+    )
+    runner.to_device(device)
+    runner.model.train()
 
-    if os.path.exists(model.transformer_model_name):
-        model.load(True, map_location=device)
+    if os.path.exists(runner.transformer_model_name):
+        runner.model.load(True, map_location=device)
 
     # print the number of parameters in the model
-    logger.info(sum(p.numel() for p in model.parameters()) // 1_000_000, "M parameters")
+    logger.info(sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters")
     optimizer = torch.optim.AdamW(
-        model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-4
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-4
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=10)
 
-    t = tqdm(range(args.epochs))
     val_loss = 0
     total_loss = 0
+    t = tqdm(range(args.epochs))
     for iter in t:
         xb, yb = get_batch("train", args.batch_size)
 
         with (
-            torch.autocast(model.device)
-            if args.use_mixed_precision and model.device == "cuda"
+            torch.autocast(runner.device)
+            if args.use_mixed_precision and runner.device == "cuda"
             else contextlib.nullcontext()
         ):
             if (iter + 1) % val_interval == 0:
-                val_loss = get_val_loss(model, args.batch_size, eval_iters=1)
+                val_loss = get_val_loss(runner, args.batch_size, eval_iters=1)
 
             # evaluate the loss
-            _, loss = model(xb, yb)
+            _, loss = runner(xb, yb)
             val_loss_history.append(val_loss)
             training_loss_history.append(loss.item())
             loss: torch.Tensor = loss / args.gradient_acc
 
         loss.backward()
-        nn.utils.clip_grad.clip_grad_norm(model.parameters(), 1e-3)
+        nn.utils.clip_grad.clip_grad_norm(runner.parameters(), 1e-3)
         total_loss += loss.item()
         scheduler.step()
 
@@ -90,7 +89,7 @@ def main():
             )
             total_loss = 0
 
-    model.save()
+    runner.save()
     show_loss(args.epochs)
 
 
