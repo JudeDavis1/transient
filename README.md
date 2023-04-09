@@ -17,7 +17,7 @@ $ pipenv run train (optional args)
 
 # Inference:
 ```
-$ pipenv run eval (optional args)
+$ pipenv run eval (Number of output tokens)
 ```
 
 
