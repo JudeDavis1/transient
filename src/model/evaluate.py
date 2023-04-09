@@ -14,6 +14,7 @@ def main():
             n_layers=Config.N_LAYERS,
             n_heads=Config.N_HEADS,
         )
+        runner.use_parallel()
         runner.to_device(cpu_device)
         runner.model.eval()
         runner.load(True, map_location=cpu_device)
