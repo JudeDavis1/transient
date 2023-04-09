@@ -115,7 +115,7 @@ def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
         X, Y = get_batch("val", batch_size)
 
         _, loss = model(X, Y, device)
-        val_loss += loss.item()
+        val_loss += loss.sum().item()
 
     # get the mean
     val_loss /= eval_iters
