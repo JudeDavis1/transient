@@ -65,7 +65,7 @@ class TransientRunner:
         self.model.apply(self._init_weights)
     
     def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
-        return self.model(x, targets)
+        return self.model(x, targets, device=self.device)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         cpu_dev = torch.device("cpu")
@@ -176,9 +176,8 @@ class TransformerModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx, targets=None, device='cpu'):
         B, T = idx.shape
-        device = next(self.parameters()).device
 
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_table(idx)  # (B, T, C)
