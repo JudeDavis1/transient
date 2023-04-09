@@ -73,7 +73,7 @@ def main():
             # evaluate the loss
             _, loss = runner.forward(xb, yb)
             val_loss_history.append(val_loss)
-            training_loss_history.append(loss.item())
+            training_loss_history.append(loss.mean().item())
             loss: torch.Tensor = loss / args.gradient_acc
 
         loss.backward()
