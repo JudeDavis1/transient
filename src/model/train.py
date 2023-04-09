@@ -43,6 +43,7 @@ def main():
         dropout=args.dropout,
     )
     runner.to_device(device)
+    runner.use_parallel()
     runner.model.train()
 
     if os.path.exists(runner.transformer_model_name):
