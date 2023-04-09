@@ -2,7 +2,7 @@ Will update soon...
 
 ## For the following tasks:
 - Make sure you're in the root project directory
-- Start:
+- To start:
 ```
 $ pipenv install --dev
 ...
