@@ -11,12 +11,12 @@ def main():
         runner = TransientRunner(
             block_size=Config.BLOCK_SIZE,
             n_embd=Config.N_EMBD,
-            n_heads=Config.N_HEADS,
             n_layers=Config.N_LAYERS,
+            n_heads=Config.N_HEADS,
         )
         runner.to_device(cpu_device)
-        runner.load(True, map_location=cpu_device)
         runner.model.eval()
+        runner.load(True, map_location=cpu_device)
 
         while True:
             context_str = input("> ")
