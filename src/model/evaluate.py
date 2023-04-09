@@ -20,7 +20,7 @@ def main():
         runner.load(True, map_location=cpu_device)
 
         if isinstance(runner.model, nn.DataParallel):
-            runner.model = runner.model.module()
+            runner.model = runner.model.module
 
         while True:
             context_str = input("> ")
