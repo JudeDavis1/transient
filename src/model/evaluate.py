@@ -19,6 +19,9 @@ def main():
         runner.model.eval()
         runner.load(True, map_location=cpu_device)
 
+        if isinstance(runner.model, nn.DataParallel):
+            runner.model = runner.model.module()
+
         while True:
             context_str = input("> ")
             context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
