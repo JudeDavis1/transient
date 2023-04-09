@@ -43,6 +43,8 @@ def main():
         dropout=args.dropout,
     ).to_device(device)
     model.train()
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
 
     if os.path.exists(model.transformer_model_name):
         model.load(True, map_location=device)
