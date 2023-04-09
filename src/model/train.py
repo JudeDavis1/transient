@@ -73,10 +73,10 @@ def main():
             # evaluate the loss
             _, loss = runner.forward(xb, yb)
             val_loss_history.append(val_loss)
-            training_loss_history.append(loss.mean().item())
+            training_loss_history.append(loss.sum().item())
             loss: torch.Tensor = loss / args.gradient_acc
 
-        loss.backward()
+        loss.sum().backward()
         nn.utils.clip_grad.clip_grad_norm(runner.model.parameters(), 1e-3)
         total_loss += loss.item()
         scheduler.step()
