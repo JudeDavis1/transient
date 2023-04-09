@@ -27,7 +27,7 @@ class BookCorpusDataset(Dataset):
 
     """
     Class:
-        - The main dataset which contains all the required data for training
+        - The main dataset that contains all the required data for training
         the model.
         - Supports multiprocessing.
     Args:
