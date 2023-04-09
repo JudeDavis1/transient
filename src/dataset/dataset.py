@@ -50,27 +50,19 @@ class BookCorpusDataset(Dataset):
 
     def __init__(
         self,
+        folder='data',
         chunk_size=3,
         train_data_file: Optional[str] = None,
-        corpus_from_file: Optional[str] = None,
         just_corpus=False,
     ):
-        try:
-            assert bool(train_data_file) == bool(corpus_from_file)
-        except AssertionError:
-            raise ValueError(
-                """If train_data_file is None, then so should the corpus_from_file.
-            corpus_from_file is dependant on train_data_file."""
-            )
-
         nltk.download("punkt", quiet=True)
 
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
-        self.train_data_file = "train_data.gz.npy"
+        self.train_data_file = train_data_file if train_data_file else "train_data.gz.npy"
         self.tokenizer = nltk.tokenize.RegexpTokenizer(r"\w+|\s+|[^\w\s]+")
 
-        self.file_contents = self._run_load_corpus(True)
+        self.file_contents = self._run_load_corpus(folder=folder, just_contents=True)
         tokenized = self.tokenize(self.file_contents)
         self.corpus = sorted(
             list(set([*tokenized, " ", "\n", '"', "\\", *string.punctuation]))
@@ -91,8 +83,8 @@ class BookCorpusDataset(Dataset):
             self.train_data: np.ndarray = np.load(self.train_data_file)
             logger.info(self.train_data.shape)
             return
+        
         self.limit = float("inf")
-
         self.train_data = np.array(self.encode(tokenized, self.limit))
 
         np.save(self.train_data_file, self.train_data)
@@ -110,6 +102,7 @@ class BookCorpusDataset(Dataset):
 
             # add features
             self.x_data.append(sample[0])
+
             # add labels
             self.y_data.append(sample[1])
 
@@ -152,9 +145,9 @@ class BookCorpusDataset(Dataset):
 
         return [self.corpus[idx] for idx in l]
 
-    def _run_load_corpus(self, just_contents=False):
+    def _run_load_corpus(self, folder='data', just_contents=False):
         return self.loop.run_until_complete(
-            load_corpus("data", just_contents=just_contents)
+            load_corpus(text_file_dir=folder, just_contents=just_contents)
         )
 
     def __getitem__(self, index):
