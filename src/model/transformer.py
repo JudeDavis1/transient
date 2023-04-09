@@ -63,6 +63,9 @@ class TransientRunner:
 
         # apply weights initialization
         self.model.apply(self._init_weights)
+    
+    def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
+        return self.model(x, targets)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         cpu_dev = torch.device("cpu")
@@ -294,7 +297,7 @@ class RMSNorm(torch.nn.Module):
 
     def __init__(self, dim: int, eps: float = 3e-5):
         super().__init__()
-        
+
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
 

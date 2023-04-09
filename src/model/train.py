@@ -46,7 +46,7 @@ def main():
     runner.model.train()
 
     if os.path.exists(runner.transformer_model_name):
-        runner.model.load(True, map_location=device)
+        runner.load(True, map_location=device)
 
     # print the number of parameters in the model
     logger.info(sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters")
@@ -67,16 +67,16 @@ def main():
             else contextlib.nullcontext()
         ):
             if (iter + 1) % val_interval == 0:
-                val_loss = get_val_loss(runner, args.batch_size, eval_iters=1)
+                val_loss = get_val_loss(runner.model, args.batch_size, eval_iters=1)
 
             # evaluate the loss
-            _, loss = runner(xb, yb)
+            _, loss = runner.forward(xb, yb)
             val_loss_history.append(val_loss)
             training_loss_history.append(loss.item())
             loss: torch.Tensor = loss / args.gradient_acc
 
         loss.backward()
-        nn.utils.clip_grad.clip_grad_norm(runner.parameters(), 1e-3)
+        nn.utils.clip_grad.clip_grad_norm(runner.model.parameters(), 1e-3)
         total_loss += loss.item()
         scheduler.step()
 
