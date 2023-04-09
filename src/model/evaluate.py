@@ -15,7 +15,7 @@ def main():
             n_layers=Config.N_LAYERS,
         )
         runner.to_device(cpu_device)
-        runner.load(map_location=cpu_device, load_cache=True)
+        runner.load(map_location=cpu_device)
         runner.model.eval()
 
         while True:
