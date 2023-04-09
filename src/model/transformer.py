@@ -6,7 +6,6 @@ All relevant modules for the transformer architecture.
 
 import os
 import sys
-import math
 import tarfile
 
 import torch
@@ -208,12 +207,12 @@ class MultiHeadAttention(nn.Module):
         k = self.key(x).view(batch_size, T, self.n_heads, self.head_size)
         q = self.query(x).view(batch_size, T, self.n_heads, self.head_size)
         v = self.value(x).view(batch_size, T, self.n_heads, self.head_size)
-        k = k.transpose(1, 2) # (B, nh, T, hs)
-        q = q.transpose(1, 2) # (B, nh, T, hs)
-        v = v.transpose(1, 2) # (B, nh, T, hs)
+        k = k.transpose(1, 2)  # (B, nh, T, hs)
+        q = q.transpose(1, 2)  # (B, nh, T, hs)
+        v = v.transpose(1, 2)  # (B, nh, T, hs)
 
         # compute attention scores
-        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size ** 0.5)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
         scores = scores.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
         attn = F.softmax(scores, dim=-1)
         attn = self.dropout(attn)
@@ -222,7 +221,11 @@ class MultiHeadAttention(nn.Module):
         out = torch.matmul(attn, v).view(batch_size, T, self.n_heads * self.head_size)
 
         # join heads concatenating along the last dimension
-        out = out.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.head_size)
+        out = (
+            out.transpose(1, 2)
+            .contiguous()
+            .view(batch_size, -1, self.n_heads * self.head_size)
+        )
         out = self.proj(out)
 
         return out

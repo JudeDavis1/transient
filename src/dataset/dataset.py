@@ -50,7 +50,7 @@ class BookCorpusDataset(Dataset):
 
     def __init__(
         self,
-        folder='data',
+        folder="data",
         chunk_size=3,
         train_data_file: Optional[str] = None,
         just_corpus=False,
@@ -59,7 +59,9 @@ class BookCorpusDataset(Dataset):
 
         self.loop = asyncio.get_event_loop()
         self.chunk_size = chunk_size
-        self.train_data_file = train_data_file if train_data_file else "train_data.gz.npy"
+        self.train_data_file = (
+            train_data_file if train_data_file else "train_data.gz.npy"
+        )
         self.tokenizer = nltk.tokenize.RegexpTokenizer(r"\w+|\s+|[^\w\s]+")
 
         self.file_contents = self._run_load_corpus(folder=folder, just_contents=True)
@@ -83,7 +85,7 @@ class BookCorpusDataset(Dataset):
             self.train_data: np.ndarray = np.load(self.train_data_file)
             logger.info(self.train_data.shape)
             return
-        
+
         self.limit = float("inf")
         self.train_data = np.array(self.encode(tokenized, self.limit))
 
@@ -145,7 +147,7 @@ class BookCorpusDataset(Dataset):
 
         return [self.corpus[idx] for idx in l]
 
-    def _run_load_corpus(self, folder='data', just_contents=False):
+    def _run_load_corpus(self, folder="data", just_contents=False):
         return self.loop.run_until_complete(
             load_corpus(text_file_dir=folder, just_contents=just_contents)
         )
