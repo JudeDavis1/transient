@@ -70,6 +70,7 @@ class TransientRunner:
             self.model = nn.DataParallel(self.model)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
+        """Generate new tokens from the model iteratively"""
         cpu_dev = torch.device("cpu")
 
         # idx is (B, T) array of indices in the current context
