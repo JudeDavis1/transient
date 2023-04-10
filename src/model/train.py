@@ -59,7 +59,12 @@ def main():
 
     val_loss = 0
     total_loss = 0
+
     t = tqdm(range(args.epochs))
+    if args.in_jupyter:
+        from tqdm import jupyter_notebook
+        t = jupyter_notebook(range(args.epochs))
+        
     for iter in t:
         xb, yb = get_batch("train", args.batch_size)
 
@@ -157,6 +162,7 @@ class HyperparamArgs:
         self.gradient_acc: int = namespace.gradient_acc
         self.use_mixed_precision: bool = namespace.use_mixed_precision
         self.dropout: float = namespace.dropout
+        self.in_jupyter: bool = namespace.in_jupyter
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -166,6 +172,7 @@ class HyperparamArgs:
         gradient_acc: {self.gradient_acc}
         use_mixed_precision: {self.use_mixed_precision}
         dropout: {self.dropout}
+        in_jupyter: {self.in_jupyter}
         """
 
 
@@ -215,6 +222,13 @@ def parse_arguments() -> HyperparamArgs:
         default=0.2,
         type=float,
         help="Dropout rate to drop out weights to reduce overfitting",
+    )
+    parser.add_argument(
+        "-j",
+        "--in-jupyter",
+        default=False,
+        type=bool,
+        help="Set to true if running in Jupyter Notebook",
     )
 
     return HyperparamArgs(parser.parse_args())
