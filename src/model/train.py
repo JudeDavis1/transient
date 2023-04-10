@@ -60,10 +60,11 @@ def main():
     val_loss = 0
     total_loss = 0
 
-    t = tqdm(range(args.epochs))
     if args.in_jupyter:
         from tqdm import tqdm_notebook
         t = tqdm_notebook(range(args.epochs))
+    else:
+        t = tqdm(range(args.epochs))
         
     for iter in t:
         xb, yb = get_batch("train", args.batch_size)
