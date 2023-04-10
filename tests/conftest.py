@@ -1,6 +1,6 @@
 import pytest
 
-from src.dataset.dataset import BookCorpusDataset
+from ..src.dataset.dataset import BookCorpusDataset
 
 
 @pytest.fixture()

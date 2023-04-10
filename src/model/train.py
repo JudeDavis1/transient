@@ -221,7 +221,7 @@ def parse_arguments() -> HyperparamArgs:
         "--dropout",
         default=0.2,
         type=float,
-        help="Dropout rate to drop out weights to reduce overfitting",
+        help="Dropout rate to randomly drop out weights to reduce overfitting",
     )
     parser.add_argument(
         "-j",
