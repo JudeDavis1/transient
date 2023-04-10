@@ -6,7 +6,7 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
-from tqdm import tqdm
+from tqdm import tqdm, tqdm_notebook
 
 from src import logger
 from src.config import Config
@@ -61,7 +61,6 @@ def main():
     total_loss = 0
 
     if args.in_jupyter:
-        from tqdm import tqdm_notebook
         t = tqdm_notebook(range(args.epochs))
     else:
         t = tqdm(range(args.epochs))
