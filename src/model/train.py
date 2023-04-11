@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
 from tqdm import tqdm, tqdm_notebook
-
+from torch.cuda.amp import GradScaler, autocast
 from src import logger
 from src.config import Config
 
@@ -56,6 +56,7 @@ def main():
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-4
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=15)
+    scaler = GradScaler()
 
     val_loss = 0
     total_loss = 0
@@ -69,7 +70,7 @@ def main():
         xb, yb = get_batch("train", args.batch_size)
 
         with (
-            torch.autocast(runner.device)
+            autocast(runner.device)
             if args.use_mixed_precision and runner.device == "cuda"
             else contextlib.nullcontext()
         ):
@@ -82,11 +83,13 @@ def main():
             training_loss_history.append(loss.mean().item())
             loss: torch.Tensor = loss / args.gradient_acc
 
-        loss.mean().backward()
+        scaler.scale(loss.mean()).backward()
         nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
-        
+
         total_loss += loss.mean().item()
         scheduler.step()
+        scaler.step(optimizer)
+        scaler.update()
 
         if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
             optimizer.step()
