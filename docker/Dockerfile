@@ -13,17 +13,27 @@ FROM base AS builder
 LABEL name="transient"
 LABEL maintainer="Jude Davis judedavis92@gmail.com"
 
-WORKDIR /transient
+WORKDIR /
 
 COPY ./ ./
 
 # Install pipenv and packages
-RUN apt update && apt upgrade -y
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 FROM builder AS python-deps
 
+RUN pip install --upgrade pip
 RUN pip install pipenv && pipenv install --dev
 
 FROM base AS runtime
+
+# Create and switch to a new user
+RUN useradd --create-home appuser
+WORKDIR /home/appuser
+VOLUME /home/appuser
+USER appuser
+
 
 # Run the application
 # You can for example test with `docker run (container name) pipenv run test`
