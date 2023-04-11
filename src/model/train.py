@@ -83,7 +83,7 @@ def main():
             loss: torch.Tensor = loss / args.gradient_acc
 
         loss.mean().backward()
-        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
+        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
         total_loss += loss.mean().item()
         scheduler.step()
 
