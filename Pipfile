@@ -14,6 +14,7 @@ pytest = "*"
 nltk = "*"
 argparse = "*"
 requests = "*"
+torch-xla = "*"
 
 [dev-packages]
 autoflake = "*"
