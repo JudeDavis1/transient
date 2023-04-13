@@ -174,9 +174,9 @@ class HyperparamArgs:
         self.epochs: int = namespace.epochs
         self.batch_size: int = namespace.batch_size
         self.gradient_acc: int = namespace.gradient_acc
-        self.use_mixed_precision: bool = namespace.use_mixed_precision
+        self.use_mixed_precision: bool = bool(namespace.use_mixed_precision)
         self.dropout: float = namespace.dropout
-        self.in_jupyter: bool = namespace.in_jupyter
+        self.in_jupyter: bool = bool(namespace.in_jupyter)
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -226,22 +226,22 @@ def parse_arguments() -> HyperparamArgs:
     parser.add_argument(
         "-mp",
         "--use-mixed-precision",
-        default=True,
-        type=bool,
+        default=1,
+        type=int,
         help="Use automatic precision to speed up training (only on CUDA-enabled GPUs)",
     )
     parser.add_argument(
         "-d",
         "--dropout",
-        default=0.2,
+        default=0.,
         type=float,
         help="Dropout rate to randomly drop out weights to reduce overfitting",
     )
     parser.add_argument(
         "-j",
         "--in-jupyter",
-        default=False,
-        type=bool,
+        default=0,
+        type=int,
         help="Set to true if running in Jupyter Notebook",
     )
 
