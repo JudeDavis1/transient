@@ -70,8 +70,8 @@ def main():
         xb, yb = get_batch("train", args.batch_size)
 
         with (
-            autocast(runner.device)
-            if args.use_mixed_precision and runner.device == "cuda"
+            autocast(runner.device == 'cuda')
+            if args.use_mixed_precision
             else contextlib.nullcontext()
         ):
             if (iter + 1) % val_interval == 0:
