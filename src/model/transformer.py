@@ -62,7 +62,7 @@ class TransientRunner:
     def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
         return self.model(x, targets, device=self.device)
     
-    def use_parallel(self):
+    def use_parallel_if_available(self):
         """Use multiple GPUs if available"""
 
         if torch.cuda.device_count() > 1:

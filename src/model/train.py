@@ -47,7 +47,7 @@ def main():
     if os.path.exists(runner.transformer_model_name):
         runner.load(True, map_location=device)
     
-    runner.use_parallel()
+    runner.use_parallel_if_available()
     runner.model.train()
 
     # print the number of parameters in the model
