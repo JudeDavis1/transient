@@ -53,10 +53,10 @@ def main():
     # print the number of parameters in the model
     logger.info(sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters")
     optimizer = torch.optim.AdamW(
-        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-4
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), eps=1e-4
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=15)
-    scaler = GradScaler()
+    scaler = GradScaler() if args.use_mixed_precision and device == 'cuda' else FakeGradScaler()
 
     val_loss = 0
     total_loss = 0
@@ -88,11 +88,10 @@ def main():
 
         total_loss += loss.mean().item()
         scheduler.step()
-        scaler.step(optimizer)
-        scaler.update()
 
         if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad(set_to_none=True)
 
             t.set_description(
@@ -154,6 +153,17 @@ def get_batch(split, batch_size):
             np.array(y)
         ).to(device)
     )
+
+class FakeGradScaler():
+    """A placeholder GradScaler for when mixed precision is not available"""
+
+    def scale(self, loss):
+        return loss
+
+    def step(self, optimizer):
+        optimizer.step()
+
+    def update(self): return
 
 
 class HyperparamArgs:

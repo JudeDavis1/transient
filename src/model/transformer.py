@@ -68,6 +68,10 @@ class TransientRunner:
         if torch.cuda.device_count() > 1:
             logger.info("Using", torch.cuda.device_count(), "GPUs...")
             self.model = nn.DataParallel(self.model)
+    
+    def compile_model(self):
+        """Compile the model for training"""
+        self.model = torch.compile(self.model)
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         """Generate new tokens from the model iteratively"""
