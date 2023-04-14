@@ -15,6 +15,7 @@ nltk = "*"
 argparse = "*"
 requests = "*"
 torch-xla = "*"
+importlib-resources = "*"
 
 [dev-packages]
 autoflake = "*"
