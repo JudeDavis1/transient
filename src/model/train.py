@@ -81,13 +81,7 @@ def main():
             training_loss_history.append(loss.mean().item())
             loss: torch.Tensor = loss / args.gradient_acc
         
-        # if using multiple gpus, loss is a list of tensors
-        if len(loss) > 1:
-            for l in loss:
-                scaler.scale(l).backward()
-        else:
-            scaler.scale(loss).backward()
-        
+        scaler.scale(loss.mean()).backward()
         nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
 
         total_loss += loss.mean().item()
