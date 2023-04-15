@@ -1,8 +1,11 @@
-echo "[*] Stopping transient container"
+echo "[*] Stopping container"
 docker stop transient
 
-echo "[*] Removing transient container"
+echo "[*] Removing container"
 docker rm transient
 
-echo "[*] Removing transient image"
+echo "[*] Removing image"
 docker rmi transient
+
+echo "[*] Removing volume"
+docker volume rm ls -f $(docker volume ls -q)

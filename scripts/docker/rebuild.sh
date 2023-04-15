@@ -1,7 +1,7 @@
 echo "[*] Stopping container"
 docker stop transient 2>/dev/null || true
 
-echo "[*] Removing transient image"
+echo "[*] Removing image"
 docker rm -f transient 2>/dev/null || true
 
 echo "[*] Rebuilding image"
