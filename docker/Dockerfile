@@ -32,3 +32,5 @@ COPY ../Pipfile.lock /home/appuser/Pipfile.lock
 RUN pipenv install --dev
 
 COPY ../ /home/appuser
+
+ENV PYTHONPATH=/home/appuser/

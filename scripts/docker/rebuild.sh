@@ -1,11 +1,11 @@
-echo "[*] Stopping and removing transient container"
+echo "[*] Stopping container"
 docker stop transient 2>/dev/null || true
 
-echo "[*] Removing transient image"
-docker rm -f transient 2>/dev/null || true
+# echo "[*] Removing transient image"
+# docker rm -f transient 2>/dev/null || true
 
-echo "[*] Rebuilding transient image"
+echo "[*] Rebuilding image"
 docker build -f ./docker/Dockerfile -t transient .
 
-echo "[*] Running transient container"
+echo "[*] Running container"
 docker run --name transient -d -it transient
