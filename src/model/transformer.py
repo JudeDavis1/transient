@@ -111,13 +111,13 @@ class TransientRunner:
         self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
 
-    def load(self, load_cache=False, **kwargs):
+    def load(self, load_cache=None, **kwargs):
         logger.info("[*] Loading model:", self.transformer_model_name)
 
         if load_cache:
-            if os.path.exists(self.cache_dir):
+            if os.path.exists(load_cache):
                 # load the uncompressed copy
-                self.model.load_state_dict(torch.load(self.cache_dir, **kwargs))
+                self.model.load_state_dict(torch.load(load_cache, **kwargs))
                 return
 
         with tarfile.open(self.transformer_model_name, "r:gz") as f:

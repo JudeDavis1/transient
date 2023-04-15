@@ -16,7 +16,7 @@ def main():
         )
         runner.to_device(cpu_device)
         runner.model.eval()
-        runner.load(True, map_location=cpu_device)
+        runner.load("model_cache", map_location=cpu_device)
 
         while True:
             context_str = input("> ")

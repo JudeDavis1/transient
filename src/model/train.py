@@ -44,8 +44,8 @@ def main():
     )
     runner.to_device(device)
 
-    if os.path.exists(runner.transformer_model_name):
-        runner.load(True, map_location=device)
+    if os.path.exists(args.from_pretrained):
+        runner.load(args.from_pretrained, map_location=device)
     
     runner.use_parallel_if_available()
     runner.model.train()
@@ -80,8 +80,14 @@ def main():
             val_loss_history.append(val_loss)
             training_loss_history.append(loss.mean().item())
             loss: torch.Tensor = loss / args.gradient_acc
-
-        scaler.scale(loss.mean()).backward()
+        
+        # if using multiple gpus, loss is a list of tensors
+        if len(loss) > 1:
+            for l in loss:
+                scaler.scale(l).backward()
+        else:
+            scaler.scale(loss).backward()
+        
         nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
 
         total_loss += loss.mean().item()
@@ -175,6 +181,7 @@ class HyperparamArgs:
         self.use_mixed_precision: bool = bool(namespace.use_mixed_precision)
         self.dropout: float = namespace.dropout
         self.in_jupyter: bool = bool(namespace.in_jupyter)
+        self.from_pretrained: str = namespace.from_pretrained
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -185,6 +192,7 @@ class HyperparamArgs:
         use_mixed_precision: {self.use_mixed_precision}
         dropout: {self.dropout}
         in_jupyter: {self.in_jupyter}
+        from_pretrained: {self.from_pretrained}
         """
 
 
@@ -241,6 +249,13 @@ def parse_arguments() -> HyperparamArgs:
         default=0,
         type=int,
         help="Set to true if running in Jupyter Notebook",
+    )
+    parser.add_argument(
+        "-f",
+        "--from-pretrained",
+        default="model_cache",
+        type=str,
+        help="Pretrained file checkpoint to load",
     )
 
     return HyperparamArgs(parser.parse_args())
