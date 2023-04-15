@@ -137,7 +137,6 @@ def get_batch(dataloader):
     """Get a randomly sampled batch of data"""
 
     x, y = next(iter(dataloader))
-    print(type(x))
 
     return (
         x.to(device, non_blocking=True),
