@@ -75,7 +75,7 @@ def main():
             autocast(enabled=args.use_mixed_precision and device == 'cuda')
         ):
             if (iter + 1) % val_interval == 0:
-                val_loss = get_val_loss(runner.model, args.batch_size, eval_iters=1)
+                val_loss = get_val_loss(runner.model, val_data, eval_iters=1)
 
             # evaluate the loss
             _, loss = runner.forward(xb, yb)
