@@ -4,29 +4,22 @@ FROM python:3.11-slim-bullseye as base
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-
 # Disables the writing of .pyc files
 ENV PYTHONDONTWRITEBYTECODE 1
-
-FROM base AS builder
 
 LABEL name="transient"
 LABEL maintainer="Jude Davis judedavis92@gmail.com"
 
-WORKDIR /
-
-COPY ./ ./
-
-# Install pipenv and packages
-RUN apt-get update && apt-get upgrade -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-FROM builder AS python-deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  gcc=4:10.2.1-1 \
+  libffi-dev=3.3-6 \
+  linux-libc-dev=5.10.158-2 \
+  build-essential=12.9 \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip
-RUN pip install pipenv && pipenv install --dev
-
-FROM base AS runtime
+RUN pip install pipenv
 
 # Create and switch to a new user
 RUN useradd --create-home appuser
@@ -34,7 +27,8 @@ WORKDIR /home/appuser
 VOLUME /home/appuser
 USER appuser
 
+COPY ../Pipfile /home/appuser/Pipfile
+COPY ../Pipfile.lock /home/appuser/Pipfile.lock
+RUN pipenv install --dev
 
-# Run the application
-# You can for example test with `docker run (container name) pipenv run test`
-
+COPY ../ /home/appuser
