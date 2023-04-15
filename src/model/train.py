@@ -6,6 +6,7 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
+from torch.utils.data import DataLoader
 from tqdm import tqdm, tqdm_notebook
 from torch.cuda.amp import GradScaler, autocast
 from src import logger
@@ -18,8 +19,6 @@ dataset.generate_batches()
 # train and test splits
 data = dataset.prep_data
 n = int(0.97 * len(data))
-train_data = data[:n]
-val_data = data[n:]
 val_interval = 5
 
 val_loss_history = []
@@ -33,6 +32,9 @@ if mps.is_built():
 def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
+
+    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
+    val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
     # model with hyperparams
     runner = TransientRunner(
@@ -67,7 +69,7 @@ def main():
         t = tqdm(range(args.epochs))
         
     for iter in t:
-        xb, yb = get_batch("train", args.batch_size)
+        xb, yb = get_batch(train_data)
 
         with (
             autocast(enabled=args.use_mixed_precision and device == 'cuda')
@@ -112,14 +114,14 @@ def show_loss(epochs):
 
 
 @torch.no_grad()
-def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
+def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     """Estimates the validation loss of current model"""
 
     model.eval()
 
     val_loss = 0.0
     for _ in range(eval_iters):
-        X, Y = get_batch("val", batch_size)
+        X, Y = get_batch(dataloader)
 
         _, loss = model(X, Y, device)
         val_loss += loss.mean().item()
@@ -131,25 +133,15 @@ def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
     return val_loss
 
 
-def get_batch(split, batch_size):
+def get_batch(dataloader):
     """Get a randomly sampled batch of data"""
 
-    ds = train_data if split == "train" else val_data
-    batch = [ds[random.randint(0, len(ds) - 1)] for _ in range(batch_size)]
-
-    x = []
-    y = []
-    for a, b in batch:
-        x.append(a)
-        y.append(b)
+    x, y = next(iter(dataloader))
+    print(type(x))
 
     return (
-        torch.from_numpy(
-            np.array(x)
-        ).to(device),
-        torch.from_numpy(
-            np.array(y)
-        ).to(device)
+        x.to(device, non_blocking=True),
+        y.to(device, non_blocking=True)
     )
 
 class FakeGradScaler():
