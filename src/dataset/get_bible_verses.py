@@ -4,7 +4,7 @@ from typing import Tuple
 import requests
 from tqdm import tqdm
 
-from . import logger
+from src import logger
 
 first_book = 50
 max_books = 66

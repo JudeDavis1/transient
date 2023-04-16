@@ -1,8 +1,8 @@
 import sys
 
-from .. import logger
-from ..config import Config
-from .transformer import *
+from src import logger
+from src.config import Config
+from src.model.transformer import *
 
 
 def main():

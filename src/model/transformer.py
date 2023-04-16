@@ -16,7 +16,7 @@ from torch.nn import functional as F
 from src.config import Config
 from src.dataset.dataset import BookCorpusDataset
 
-from .. import logger
+from src import logger
 
 dataset = BookCorpusDataset(chunk_size=Config.BLOCK_SIZE)
 
