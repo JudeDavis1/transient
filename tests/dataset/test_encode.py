@@ -1,8 +1,8 @@
-
 from src.dataset.dataset import BookCorpusDataset
+from tests.dataset.generic_string_test_cases_dataset import generic_string_testcases
 
 
-@test_cases()
+@generic_string_testcases()
 def test_encode(test_case, dataset: BookCorpusDataset):
     """Test encoding"""
 

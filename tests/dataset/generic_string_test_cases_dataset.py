@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_cases(param="test_case"):
+def generic_string_testcases(param="test_case"):
     """Generate test cases for encoding and decoding"""
 
     return pytest.mark.parametrize(
