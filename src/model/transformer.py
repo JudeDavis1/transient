@@ -14,9 +14,9 @@ from torch.nn import functional as F
 
 """Local"""
 from src.config import Config
+from src.dataset.dataset import BookCorpusDataset
 
 from .. import logger
-from src.dataset.dataset import BookCorpusDataset
 
 dataset = BookCorpusDataset(chunk_size=Config.BLOCK_SIZE)
 
@@ -27,7 +27,6 @@ logger.info("Vocab size:", vocab_size)
 
 
 class TransientRunner:
-
     def __init__(
         self,
         block_size=128,
@@ -58,17 +57,17 @@ class TransientRunner:
 
         # apply weights initialization
         self.model.apply(self._init_weights)
-    
+
     def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
         return self.model(x, targets, device=self.device)
-    
+
     def use_parallel_if_available(self):
         """Use multiple GPUs if available"""
 
         if torch.cuda.device_count() > 1:
             logger.info("Using", torch.cuda.device_count(), "GPUs...")
             self.model = nn.DataParallel(self.model)
-    
+
     def compile_model(self):
         """Compile the model for training"""
         self.model = torch.compile(self.model)
@@ -86,10 +85,10 @@ class TransientRunner:
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
             probs = F.softmax(logits, dim=-1)  # (B, C)
-            
+
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
-            
+
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
             if display:
@@ -102,7 +101,7 @@ class TransientRunner:
             print()
 
         return idx
-    
+
     def is_parallel(self):
         return isinstance(self.model, nn.DataParallel)
 
@@ -121,11 +120,13 @@ class TransientRunner:
                 return
 
         with tarfile.open(self.transformer_model_name, "r:gz") as f:
-            self.model.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
+            self.model.load_state_dict(
+                torch.load(f.extractfile(self.cache_dir), **kwargs)
+            )
 
     def save(self, save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
-        
+
         if self.is_parallel():
             self.model = self.model.module
 
