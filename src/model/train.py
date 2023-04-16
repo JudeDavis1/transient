@@ -56,7 +56,7 @@ def main():
     optimizer = torch.optim.AdamW(
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), eps=1e-4
     )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=15)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=100)
     scaler = (
         GradScaler()
         if args.use_mixed_precision and device == "cuda"
@@ -85,7 +85,7 @@ def main():
             loss: torch.Tensor = loss / args.gradient_acc
 
         scaler.scale(loss.mean()).backward()
-        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=3.0)
+        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
 
         total_loss += loss.mean().item()
         scheduler.step()
