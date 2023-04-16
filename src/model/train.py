@@ -9,7 +9,6 @@ from tqdm import tqdm, tqdm_notebook
 
 from src import logger
 from src.config import Config
-
 from src.model.transformer import *
 
 dataset.generate_batches()

@@ -177,5 +177,3 @@ async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:
         corpus += f.read()
 
     return corpus
-
-
