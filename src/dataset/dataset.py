@@ -179,35 +179,3 @@ async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:
     return corpus
 
 
-def split_tokens(text: str):
-    words = text.split(" ")
-    tokens = []
-
-    for word in words:
-        tokens.append(" ")
-        # remove special chars
-        token = ""
-        for char in word:
-            if char.isalnum():
-                token += char
-
-        tokens.append(token)
-
-        # check if special chars are in the token and add them
-        for char in word:
-            if char in string.punctuation:
-                tokens.append(char)
-
-    # remove first redundant space
-    tokens = tokens[1:]
-
-    return tokens
-
-
-if __name__ == "__main__":
-    # loop = asyncio.get_event_loop()
-    # start = time.time()
-    # corpus, text = loop.run_until_complete(load_corpus('data'))
-    # end = time.time()
-    # print(end - start)
-    split_tokens("hello. ok! or ok dave")
