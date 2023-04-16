@@ -4,9 +4,6 @@ FROM python:3.11-slim-bullseye as base
 ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
-# Disables the writing of .pyc files
-ENV PYTHONDONTWRITEBYTECODE 1
-
 LABEL name="transient"
 LABEL maintainer="Jude Davis judedavis92@gmail.com"
 
@@ -18,8 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip
-RUN pip install pipenv
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir pipenv
 
 # Create and switch to a new user
 RUN useradd --create-home appuser
@@ -33,4 +30,6 @@ RUN pipenv install --dev
 
 COPY ../ /home/appuser
 
+# Disables the writing of .pyc files
+ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONPATH=/home/appuser/

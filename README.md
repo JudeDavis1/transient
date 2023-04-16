@@ -1,6 +1,8 @@
-Will update soon...
-
 ## For the following tasks:
+- Need:
+    - pipenv: `pip install pipenv`
+    - Docker
+    - Make
 - Make sure you're in the root project directory
 - To start:
 ```

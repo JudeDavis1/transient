@@ -98,7 +98,7 @@ class BookCorpusDataset(Dataset):
         next_idx = self.chunk_size
 
         while True:
-            sample = self._get_batch(beginning, next_idx)
+            sample = self.get_batch(beginning, next_idx)
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
 
@@ -114,7 +114,7 @@ class BookCorpusDataset(Dataset):
             beginning = next_idx
             next_idx = beginning + self.chunk_size
 
-    def _get_batch(self, beginning, next_idx):
+    def get_batch(self, beginning, next_idx):
         starting_phrase = self.train_data[beginning:next_idx]
         target_word = self.train_data[next_idx : next_idx + self.chunk_size]
 
