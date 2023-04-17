@@ -134,7 +134,7 @@ def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     return val_loss
 
 
-def get_batch(dataloader):
+def get_batch(dataloader: DataLoader):
     """Get a randomly sampled batch of data"""
 
     x, y = next(iter(dataloader))
