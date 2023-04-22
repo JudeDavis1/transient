@@ -1,5 +1,5 @@
 echo "[*] Stopping container"
-docker stop transient
+docker stop -t 0 transient
 
 echo "[*] Removing container"
 docker rm transient

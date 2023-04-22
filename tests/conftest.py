@@ -4,14 +4,14 @@ from src.config import Config
 from src.dataset.dataset import BookCorpusDataset
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def config() -> Config:
     config = Config()
     config.BLOCK_SIZE = 64
     return config
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def dataset(config: Config) -> BookCorpusDataset:
     dataset = BookCorpusDataset(
         folder="data",
@@ -20,13 +20,8 @@ def dataset(config: Config) -> BookCorpusDataset:
     )
     return dataset
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def dataset_with_batches(dataset) -> BookCorpusDataset:
     dataset.generate_batches()
     return dataset
 
-
-@pytest.fixture()
-def dataset_with_batches(dataset) -> BookCorpusDataset:
-    dataset.generate_batches()
-    return dataset

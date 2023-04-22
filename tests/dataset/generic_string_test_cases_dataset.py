@@ -20,5 +20,8 @@ def generic_string_testcases(param="test_case"):
             "hello-world!",
             "hello-world!?",
             "don't",
+            "don't do it",
+            "don't do it!",
+            "don't do it!?",
         ],
     )
