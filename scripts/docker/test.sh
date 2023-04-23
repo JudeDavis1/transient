@@ -1,2 +1,2 @@
-make rebuild
-docker exec -it transient pipenv run test
+docker compose build
+docker compose run --rm test

@@ -25,7 +25,7 @@ VOLUME /home/appuser
 USER appuser
 
 COPY ../Pipfile /home/appuser/Pipfile
-COPY ../Pipfile.lock /home/appuser/Pipfile.lock
+COPY ./Pipfile.lock /home/appuser/Pipfile.lock
 
 RUN pipenv install --dev
 
@@ -34,5 +34,3 @@ COPY ../ /home/appuser
 # Disables the writing of .pyc files
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONPATH=/home/appuser/
-
-

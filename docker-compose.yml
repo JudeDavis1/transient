@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  base:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+  
+  test:
+    depends_on:
+      - base
+    image: transient-base
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.test
