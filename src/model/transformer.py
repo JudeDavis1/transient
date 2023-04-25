@@ -13,6 +13,7 @@ import torch.nn as nn
 
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 """Local"""
 from src import logger
@@ -116,7 +117,9 @@ class TransientRunner:
         loader = DataLoader(dataset.prep_data[:n_samples], batch_size=1)
 
         correct = 0
-        for x, y in loader:
+
+        # iterate over the samples
+        for x, y in (pbar := tqdm(loader, total=n_samples)):
             y = y.flatten()[:block_size].numpy()
 
             # generate predictions
@@ -124,6 +127,7 @@ class TransientRunner:
 
             # compute accuracy
             correct += int(predictions.tolist() == y.tolist())
+            pbar.set_description(f"Correct: {correct}")
         
         accuracy = correct / n_samples
         return accuracy
