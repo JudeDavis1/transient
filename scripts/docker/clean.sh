@@ -9,3 +9,5 @@ docker rmi -f $(docker images -q)
 
 echo "[*] Removing volume"
 docker volume rm ls -f $(docker volume ls -q)
+
+docker system prune
