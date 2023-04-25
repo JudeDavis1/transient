@@ -10,14 +10,16 @@ import tarfile
 
 import torch
 import torch.nn as nn
+
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
 
 """Local"""
 from src import logger
 from src.config import Config
 from src.dataset.dataset import BookCorpusDataset
 
-dataset = BookCorpusDataset(chunk_size=Config.BLOCK_SIZE)
+dataset = BookCorpusDataset()
 
 # unique characters that occur in this text
 tokens = dataset.corpus
@@ -28,10 +30,10 @@ logger.info("Vocab size:", vocab_size)
 class TransientRunner:
     def __init__(
         self,
-        block_size=128,
-        n_embd=384,
-        n_layers=8,
-        n_heads=8,
+        block_size=Config.BLOCK_SIZE,
+        n_embd=Config.N_EMBD,
+        n_layers=Config.N_LAYERS,
+        n_heads=Config.N_HEADS,
         dropout=0.2,
     ):
         # hyperparams
@@ -100,6 +102,31 @@ class TransientRunner:
             print()
 
         return idx
+    
+    def score_accuracy(
+        self,
+        dataset: BookCorpusDataset,
+        n_samples: int=10,
+        block_size: int=3,
+    ) -> float:
+        """Score the accuracy of the model on a set of samples"""
+
+        # generate a set of samples
+        dataset.generate_batches(block_size)
+        loader = DataLoader(dataset.prep_data[:n_samples], batch_size=1)
+
+        correct = 0
+        for x, y in loader:
+            y = y.flatten()[:block_size].numpy()
+
+            # generate predictions
+            predictions = self.generate(x, block_size).flatten()[-block_size:].numpy()
+
+            # compute accuracy
+            correct += int(predictions.tolist() == y.tolist())
+        
+        accuracy = correct / n_samples
+        return accuracy
 
     def is_parallel(self):
         return isinstance(self.model, nn.DataParallel)
