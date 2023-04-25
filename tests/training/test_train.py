@@ -15,7 +15,7 @@ from src.model.train import get_batch
     [random.randint(5, 70) for _ in range(10)]
 )
 def test_get_batch(
-    config: Config,
+    small_config: Config,
     dataset_with_batches: BookCorpusDataset,
     batch_size: int
 ):
@@ -33,6 +33,6 @@ def test_get_batch(
     assert end - start < 0.7
 
     # check shapes are correct
-    assert x.shape == (batch_size, config.BLOCK_SIZE)
-    assert y.shape == (batch_size, config.BLOCK_SIZE)
+    assert x.shape == (batch_size, small_config.BLOCK_SIZE)
+    assert y.shape == (batch_size, small_config.BLOCK_SIZE)
 

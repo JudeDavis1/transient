@@ -11,7 +11,7 @@ from src import logger
 from src.config import Config
 from src.model.transformer import *
 
-dataset.generate_batches()
+dataset.generate_batches(Config.BLOCK_SIZE)
 
 # train and test splits
 data = dataset.prep_data
