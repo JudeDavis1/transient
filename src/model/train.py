@@ -72,33 +72,33 @@ def main():
         t = tqdm(range(args.epochs))
 
     for iter in t:
-        xb, yb = get_batch(train_data)
+        for (xb, yb) in train_data:
+            # with mixed precision
+            with autocast(enabled=args.use_mixed_precision and device == "cuda"):
+                if (iter + 1) % val_interval == 0:
+                    val_loss = get_val_loss(runner.model, val_data, eval_iters=1)
 
-        with autocast(enabled=args.use_mixed_precision and device == "cuda"):
-            if (iter + 1) % val_interval == 0:
-                val_loss = get_val_loss(runner.model, val_data, eval_iters=1)
+                # evaluate the loss
+                _, loss = runner.forward(xb, yb)
+                val_loss_history.append(val_loss)
+                training_loss_history.append(loss.mean().item())
+                loss: torch.Tensor = loss / args.gradient_acc
 
-            # evaluate the loss
-            _, loss = runner.forward(xb, yb)
-            val_loss_history.append(val_loss)
-            training_loss_history.append(loss.mean().item())
-            loss: torch.Tensor = loss / args.gradient_acc
+            scaler.scale(loss.mean()).backward()
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
 
-        scaler.scale(loss.mean()).backward()
-        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
+            total_loss += loss.mean().item()
+            scheduler.step()
 
-        total_loss += loss.mean().item()
-        scheduler.step()
+            if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad(set_to_none=True)
 
-        if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad(set_to_none=True)
-
-            t.set_description(
-                f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}"
-            )
-            total_loss = 0
+                t.set_description(
+                    f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}"
+                )
+                total_loss = 0
 
     runner.save()
     show_loss(args.epochs)
