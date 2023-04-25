@@ -18,6 +18,9 @@ def main():
         runner.model.eval()
         runner.load("model_cache", map_location=cpu_device)
 
+        accuracy = runner.score_accuracy(dataset, n_samples=100)
+        logger.info(f"Accuracy: {accuracy}")
+
         while True:
             context_str = input("> ")
             context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
