@@ -51,14 +51,12 @@ class BookCorpusDataset(Dataset):
     def __init__(
         self,
         folder="data",
-        chunk_size=3,
         train_data_file: Optional[str] = None,
         just_corpus=False,
     ):
         nltk.download("punkt", quiet=True)
 
         self.loop = asyncio.get_event_loop()
-        self.chunk_size = chunk_size
         self.train_data_file = (
             train_data_file if train_data_file else "train_data.gz.npy"
         )
@@ -93,7 +91,9 @@ class BookCorpusDataset(Dataset):
         logger.info("All elements exist:", all(self.train_data))
         logger.info(len(self.train_data))
 
-    def generate_batches(self):
+    def generate_batches(self, chunk_size):
+        self.chunk_size = chunk_size
+
         beginning = 0
         next_idx = self.chunk_size
 
