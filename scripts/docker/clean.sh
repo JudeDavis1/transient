@@ -1,8 +1,13 @@
-echo "[*] Stopping transient container"
-docker stop transient
+echo "[*] Stopping container"
+docker compose stop -t 0 transient-base transient-test
 
-echo "[*] Removing transient container"
-docker rm transient
+echo "[*] Removing container"
+docker compose rm base test
 
-echo "[*] Removing transient image"
-docker rmi transient
+echo "[*] Removing image"
+docker rmi -f $(docker images -q)
+
+echo "[*] Removing volume"
+docker volume rm ls -f $(docker volume ls -q)
+
+docker system prune

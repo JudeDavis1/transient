@@ -10,15 +10,17 @@ import tarfile
 
 import torch
 import torch.nn as nn
+
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 """Local"""
+from src import logger
 from src.config import Config
-
-from .. import logger
 from src.dataset.dataset import BookCorpusDataset
 
-dataset = BookCorpusDataset(chunk_size=Config.BLOCK_SIZE)
+dataset = BookCorpusDataset()
 
 # unique characters that occur in this text
 tokens = dataset.corpus
@@ -27,13 +29,12 @@ logger.info("Vocab size:", vocab_size)
 
 
 class TransientRunner:
-
     def __init__(
         self,
-        block_size=128,
-        n_embd=384,
-        n_layers=8,
-        n_heads=8,
+        block_size=Config.BLOCK_SIZE,
+        n_embd=Config.N_EMBD,
+        n_layers=Config.N_LAYERS,
+        n_heads=Config.N_HEADS,
         dropout=0.2,
     ):
         # hyperparams
@@ -58,17 +59,17 @@ class TransientRunner:
 
         # apply weights initialization
         self.model.apply(self._init_weights)
-    
+
     def forward(self, x: torch.Tensor, targets: torch.Tensor = None):
         return self.model(x, targets, device=self.device)
-    
+
     def use_parallel_if_available(self):
         """Use multiple GPUs if available"""
 
         if torch.cuda.device_count() > 1:
             logger.info("Using", torch.cuda.device_count(), "GPUs...")
             self.model = nn.DataParallel(self.model)
-    
+
     def compile_model(self):
         """Compile the model for training"""
         self.model = torch.compile(self.model)
@@ -86,10 +87,10 @@ class TransientRunner:
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
             probs = F.softmax(logits, dim=-1)  # (B, C)
-            
+
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
-            
+
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
             if display:
@@ -103,6 +104,34 @@ class TransientRunner:
 
         return idx
     
+    def score_accuracy(
+        self,
+        dataset: BookCorpusDataset,
+        n_samples: int=10,
+        block_size: int=3,
+    ) -> float:
+        """Score the accuracy of the model on a set of samples"""
+
+        # generate a set of samples
+        dataset.generate_batches(block_size)
+        loader = DataLoader(dataset.prep_data[:n_samples], batch_size=1)
+
+        correct = 0
+
+        # iterate over the samples
+        for x, y in (pbar := tqdm(loader, total=n_samples)):
+            y = y.flatten()[:block_size].numpy()
+
+            # generate predictions
+            predictions = self.generate(x, block_size).flatten()[-block_size:].numpy()
+
+            # compute accuracy
+            correct += int(predictions.tolist() == y.tolist())
+            pbar.set_description(f"Correct: {correct}")
+        
+        accuracy = correct / n_samples
+        return accuracy
+
     def is_parallel(self):
         return isinstance(self.model, nn.DataParallel)
 
@@ -111,21 +140,23 @@ class TransientRunner:
         self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
 
-    def load(self, load_cache=False, **kwargs):
+    def load(self, load_cache=None, **kwargs):
         logger.info("[*] Loading model:", self.transformer_model_name)
 
         if load_cache:
-            if os.path.exists(self.cache_dir):
+            if os.path.exists(load_cache):
                 # load the uncompressed copy
-                self.model.load_state_dict(torch.load(self.cache_dir, **kwargs))
+                self.model.load_state_dict(torch.load(load_cache, **kwargs))
                 return
 
         with tarfile.open(self.transformer_model_name, "r:gz") as f:
-            self.model.load_state_dict(torch.load(f.extractfile(self.cache_dir), **kwargs))
+            self.model.load_state_dict(
+                torch.load(f.extractfile(self.cache_dir), **kwargs)
+            )
 
     def save(self, save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
-        
+
         if self.is_parallel():
             self.model = self.model.module
 

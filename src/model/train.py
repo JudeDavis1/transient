@@ -1,25 +1,21 @@
 import argparse
-import contextlib
 import os
-import random
 
-import numpy as np
 from matplotlib import pyplot as plt
 from torch.backends import mps
-from tqdm import tqdm, tqdm_notebook
 from torch.cuda.amp import GradScaler, autocast
+from torch.utils.data import DataLoader
+from tqdm import tqdm, tqdm_notebook
+
 from src import logger
 from src.config import Config
+from src.model.transformer import *
 
-from .transformer import *
-
-dataset.generate_batches()
+dataset.generate_batches(Config.BLOCK_SIZE)
 
 # train and test splits
 data = dataset.prep_data
 n = int(0.97 * len(data))
-train_data = data[:n]
-val_data = data[n:]
 val_interval = 5
 
 val_loss_history = []
@@ -34,6 +30,9 @@ def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
+    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
+    val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
+
     # model with hyperparams
     runner = TransientRunner(
         block_size=Config.BLOCK_SIZE,
@@ -44,19 +43,25 @@ def main():
     )
     runner.to_device(device)
 
-    if os.path.exists(runner.transformer_model_name):
-        runner.load(True, map_location=device)
-    
+    if os.path.exists(args.from_pretrained):
+        runner.load(args.from_pretrained, map_location=device)
+
     runner.use_parallel_if_available()
     runner.model.train()
 
     # print the number of parameters in the model
-    logger.info(sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters")
+    logger.info(
+        sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
+    )
     optimizer = torch.optim.AdamW(
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), eps=1e-4
     )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=15)
-    scaler = GradScaler() if args.use_mixed_precision and device == 'cuda' else FakeGradScaler()
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=100)
+    scaler = (
+        GradScaler()
+        if args.use_mixed_precision and device == "cuda"
+        else FakeGradScaler()
+    )
 
     val_loss = 0
     total_loss = 0
@@ -65,37 +70,35 @@ def main():
         t = tqdm_notebook(range(args.epochs))
     else:
         t = tqdm(range(args.epochs))
-        
+
     for iter in t:
-        xb, yb = get_batch("train", args.batch_size)
+        for (xb, yb) in train_data:
+            # with mixed precision
+            with autocast(enabled=args.use_mixed_precision and device == "cuda"):
+                if (iter + 1) % val_interval == 0:
+                    val_loss = get_val_loss(runner.model, val_data, eval_iters=1)
 
-        with (
-            autocast(enabled=args.use_mixed_precision and device == 'cuda')
-        ):
-            if (iter + 1) % val_interval == 0:
-                val_loss = get_val_loss(runner.model, args.batch_size, eval_iters=1)
+                # evaluate the loss
+                _, loss = runner.forward(xb, yb)
+                val_loss_history.append(val_loss)
+                training_loss_history.append(loss.mean().item())
+                loss: torch.Tensor = loss / args.gradient_acc
 
-            # evaluate the loss
-            _, loss = runner.forward(xb, yb)
-            val_loss_history.append(val_loss)
-            training_loss_history.append(loss.mean().item())
-            loss: torch.Tensor = loss / args.gradient_acc
+            scaler.scale(loss.mean()).backward()
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
 
-        scaler.scale(loss.mean()).backward()
-        nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
+            total_loss += loss.mean().item()
+            scheduler.step()
 
-        total_loss += loss.mean().item()
-        scheduler.step()
+            if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad(set_to_none=True)
 
-        if (iter + 1) % args.gradient_acc == 0 or (iter + 1) == args.epochs:
-            scaler.step(optimizer)
-            scaler.update()
-            optimizer.zero_grad(set_to_none=True)
-
-            t.set_description(
-                f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}"
-            )
-            total_loss = 0
+                t.set_description(
+                    f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}"
+                )
+                total_loss = 0
 
     runner.save()
     show_loss(args.epochs)
@@ -112,14 +115,14 @@ def show_loss(epochs):
 
 
 @torch.no_grad()
-def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
+def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     """Estimates the validation loss of current model"""
 
     model.eval()
 
     val_loss = 0.0
     for _ in range(eval_iters):
-        X, Y = get_batch("val", batch_size)
+        X, Y = get_batch(dataloader)
 
         _, loss = model(X, Y, device)
         val_loss += loss.mean().item()
@@ -131,28 +134,15 @@ def get_val_loss(model: TransformerModel, batch_size, eval_iters=50) -> float:
     return val_loss
 
 
-def get_batch(split, batch_size):
+def get_batch(dataloader: DataLoader):
     """Get a randomly sampled batch of data"""
 
-    ds = train_data if split == "train" else val_data
-    batch = [ds[random.randint(0, len(ds) - 1)] for _ in range(batch_size)]
+    x, y = next(iter(dataloader))
 
-    x = []
-    y = []
-    for a, b in batch:
-        x.append(a)
-        y.append(b)
+    return (x.to(device, non_blocking=True), y.to(device, non_blocking=True))
 
-    return (
-        torch.from_numpy(
-            np.array(x)
-        ).to(device),
-        torch.from_numpy(
-            np.array(y)
-        ).to(device)
-    )
 
-class FakeGradScaler():
+class FakeGradScaler:
     """A placeholder GradScaler for when mixed precision is not available"""
 
     def scale(self, loss):
@@ -161,7 +151,8 @@ class FakeGradScaler():
     def step(self, optimizer):
         optimizer.step()
 
-    def update(self): return
+    def update(self):
+        return
 
 
 class HyperparamArgs:
@@ -175,6 +166,7 @@ class HyperparamArgs:
         self.use_mixed_precision: bool = bool(namespace.use_mixed_precision)
         self.dropout: float = namespace.dropout
         self.in_jupyter: bool = bool(namespace.in_jupyter)
+        self.from_pretrained: str = namespace.from_pretrained
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -185,6 +177,7 @@ class HyperparamArgs:
         use_mixed_precision: {self.use_mixed_precision}
         dropout: {self.dropout}
         in_jupyter: {self.in_jupyter}
+        from_pretrained: {self.from_pretrained}
         """
 
 
@@ -231,7 +224,7 @@ def parse_arguments() -> HyperparamArgs:
     parser.add_argument(
         "-d",
         "--dropout",
-        default=0.,
+        default=0.0,
         type=float,
         help="Dropout rate to randomly drop out weights to reduce overfitting",
     )
@@ -241,6 +234,13 @@ def parse_arguments() -> HyperparamArgs:
         default=0,
         type=int,
         help="Set to true if running in Jupyter Notebook",
+    )
+    parser.add_argument(
+        "-f",
+        "--from-pretrained",
+        default="model_cache",
+        type=str,
+        help="Pretrained file checkpoint to load",
     )
 
     return HyperparamArgs(parser.parse_args())

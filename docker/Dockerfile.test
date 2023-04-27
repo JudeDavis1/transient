@@ -1,0 +1,7 @@
+FROM transient-base:latest AS base
+
+WORKDIR /home/appuser
+VOLUME /home/appuser
+USER appuser
+
+CMD ["pipenv", "run", "test"]

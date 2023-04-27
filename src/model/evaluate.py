@@ -1,8 +1,8 @@
 import sys
 
-from .. import logger
-from ..config import Config
-from .transformer import *
+from src import logger
+from src.config import Config
+from src.model.transformer import *
 
 
 def main():
@@ -16,7 +16,10 @@ def main():
         )
         runner.to_device(cpu_device)
         runner.model.eval()
-        runner.load(True, map_location=cpu_device)
+        runner.load("model_cache", map_location=cpu_device)
+
+        accuracy = runner.score_accuracy(dataset, n_samples=100)
+        logger.info(f"Accuracy: {accuracy}")
 
         while True:
             context_str = input("> ")

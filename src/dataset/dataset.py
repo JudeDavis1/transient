@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 warnings.filterwarnings("ignore")
 
-from .. import logger
+from src import logger
 
 
 class BookCorpusDataset(Dataset):
@@ -51,14 +51,12 @@ class BookCorpusDataset(Dataset):
     def __init__(
         self,
         folder="data",
-        chunk_size=3,
         train_data_file: Optional[str] = None,
         just_corpus=False,
     ):
         nltk.download("punkt", quiet=True)
 
         self.loop = asyncio.get_event_loop()
-        self.chunk_size = chunk_size
         self.train_data_file = (
             train_data_file if train_data_file else "train_data.gz.npy"
         )
@@ -93,12 +91,14 @@ class BookCorpusDataset(Dataset):
         logger.info("All elements exist:", all(self.train_data))
         logger.info(len(self.train_data))
 
-    def generate_batches(self):
+    def generate_batches(self, chunk_size):
+        self.chunk_size = chunk_size
+
         beginning = 0
         next_idx = self.chunk_size
 
         while True:
-            sample = self._get_batch(beginning, next_idx)
+            sample = self.get_batch(beginning, next_idx)
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
 
@@ -114,7 +114,7 @@ class BookCorpusDataset(Dataset):
             beginning = next_idx
             next_idx = beginning + self.chunk_size
 
-    def _get_batch(self, beginning, next_idx):
+    def get_batch(self, beginning, next_idx):
         starting_phrase = self.train_data[beginning:next_idx]
         target_word = self.train_data[next_idx : next_idx + self.chunk_size]
 
@@ -177,37 +177,3 @@ async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:
         corpus += f.read()
 
     return corpus
-
-
-def split_tokens(text: str):
-    words = text.split(" ")
-    tokens = []
-
-    for word in words:
-        tokens.append(" ")
-        # remove special chars
-        token = ""
-        for char in word:
-            if char.isalnum():
-                token += char
-
-        tokens.append(token)
-
-        # check if special chars are in the token and add them
-        for char in word:
-            if char in string.punctuation:
-                tokens.append(char)
-
-    # remove first redundant space
-    tokens = tokens[1:]
-
-    return tokens
-
-
-if __name__ == "__main__":
-    # loop = asyncio.get_event_loop()
-    # start = time.time()
-    # corpus, text = loop.run_until_complete(load_corpus('data'))
-    # end = time.time()
-    # print(end - start)
-    split_tokens("hello. ok! or ok dave")

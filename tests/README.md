@@ -1,7 +1,11 @@
 # To test:
-- Run in the `tests/` folder:
+- In the root project folder:
 ```
-pytest .
+$ make test
 ```
 
-May switch to a `pipenv` command in the future
+### Why using docker for testing?
+- To avoid module version conflicts
+- Avoiding the import errors caused by the python environment
+- So that the tests can be run on any machine
+- So we can test the code on different python versions if needed
