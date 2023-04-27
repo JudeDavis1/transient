@@ -83,7 +83,7 @@ def main():
             # with mixed precision
             with autocast(enabled=args.use_mixed_precision and device == "cuda"):
                 if (cur_step + 1) % val_interval == 0:
-                    val_loss = get_val_loss(runner.model, val_data, eval_iters=10)
+                    val_loss = get_val_loss(runner.model, val_data, eval_iters=2)
 
                 # evaluate the loss
                 _, loss = runner.forward(xb, yb)
