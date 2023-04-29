@@ -71,7 +71,8 @@ def main():
     else:
         t = tqdm(range(args.epochs))
     
-    n_steps = args.epochs  * len(train_data)
+    n_steps_per_batch = len(train_data)
+    n_steps = args.epochs * n_steps_per_batch
 
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
@@ -92,7 +93,7 @@ def main():
                 loss: torch.Tensor = loss / args.gradient_acc
 
             scaler.scale(loss.mean()).backward()
-            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=2.0)
 
             total_loss += loss.mean().item()
             scheduler.step()
@@ -101,9 +102,11 @@ def main():
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
-
+                
+                val_loss_str = round(val_loss, 5) if val_loss else 'N/A'
+                lr_str = scheduler.get_lr()[-1]
                 t.set_description(
-                    f"Epoch {iter} - Train loss: {total_loss:.4f}  Validation loss: {round(val_loss, 5) if val_loss else 'N/A'} LR: {scheduler.get_lr()[-1]}"
+                    f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.4f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
                 )
                 total_loss = 0
 
