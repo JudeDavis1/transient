@@ -70,17 +70,17 @@ def main():
         t = tqdm_notebook(range(args.epochs))
     else:
         t = tqdm(range(args.epochs))
-    
+
     n_steps_per_batch = len(train_data)
     n_steps = args.epochs * n_steps_per_batch
 
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
             cur_step = (1 + iter) * j
-            
+
             xb = xb.to(device, non_blocking=True)
             yb = yb.to(device, non_blocking=True)
-            
+
             # with mixed precision
             with autocast(enabled=args.use_mixed_precision and device == "cuda"):
                 if (cur_step + 1) % val_interval == 0:
@@ -97,13 +97,13 @@ def main():
 
             total_loss += loss.mean().item()
             scheduler.step()
-            
+
             if (cur_step + 1) % args.gradient_acc == 0 or (cur_step + 1) == n_steps:
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
-                
-                val_loss_str = round(val_loss, 5) if val_loss else 'N/A'
+
+                val_loss_str = round(val_loss, 5) if val_loss else "N/A"
                 lr_str = scheduler.get_lr()[-1]
                 t.set_description(
                     f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.4f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"

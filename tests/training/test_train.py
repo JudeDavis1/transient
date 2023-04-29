@@ -1,7 +1,7 @@
-import time
-import pytest
 import random
+import time
 
+import pytest
 from torch.utils.data import DataLoader
 
 from src.config import Config
@@ -12,17 +12,13 @@ from src.model.train import get_batch
 @pytest.mark.parametrize(
     "batch_size",
     # try different batch sizes
-    [random.randint(5, 70) for _ in range(10)]
+    [random.randint(5, 70) for _ in range(10)],
 )
 def test_get_batch(
-    small_config: Config,
-    dataset_with_batches: BookCorpusDataset,
-    batch_size: int
+    small_config: Config, dataset_with_batches: BookCorpusDataset, batch_size: int
 ):
     dataloader = DataLoader(
-        dataset_with_batches[:100],
-        batch_size=batch_size,
-        shuffle=True
+        dataset_with_batches[:100], batch_size=batch_size, shuffle=True
     )
 
     start = time.time()
@@ -35,4 +31,3 @@ def test_get_batch(
     # check shapes are correct
     assert x.shape == (batch_size, small_config.BLOCK_SIZE)
     assert y.shape == (batch_size, small_config.BLOCK_SIZE)
-
