@@ -10,7 +10,6 @@ LABEL maintainer="Jude Davis judedavis92@gmail.com"
 RUN apt-get update && apt-get install -y --no-install-recommends \
   gcc=4:10.2.1-1 \
   libffi-dev=3.3-6 \
-  linux-libc-dev=5.10.158-2 \
   build-essential=12.9 \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
