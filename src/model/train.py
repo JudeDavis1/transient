@@ -31,7 +31,7 @@ def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
-    if args.device:
+    if args.device == "xla":
         import torch_xla.core.xla_model as xm
 
         device = xm.xla_device()
