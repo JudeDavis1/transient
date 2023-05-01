@@ -1,3 +1,13 @@
+try:
+    import torch_xla
+    xla_available = torch_xla.is_available()
+
+    import torch_xla.core.xla_model as xm
+    xla_device = xm.xla_device()
+except ImportError:
+    xla_available = False
+    xla_device = 'cpu'
+
 import argparse
 import os
 
@@ -24,6 +34,8 @@ training_loss_history = []
 device = "cuda" if torch.cuda.is_available() else "cpu"
 if mps.is_built():
     device = torch.device("mps")
+elif xla_available:
+    device = xla_device
 
 
 def main():
