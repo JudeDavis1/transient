@@ -31,8 +31,10 @@ def main():
     logger.special(args)
 
     if args.device:
-        device = args.device
-    
+        import torch_xla.core.xla_model as xm
+
+        device = xm.xla_device()
+
     train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
