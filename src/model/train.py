@@ -26,7 +26,6 @@ if mps.is_built():
     device = torch.device("mps")
 
 
-
 def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
