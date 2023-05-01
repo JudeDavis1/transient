@@ -27,6 +27,7 @@ if mps.is_built():
 
 
 def main():
+    global device
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
