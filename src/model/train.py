@@ -30,7 +30,9 @@ def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
-    device = args.device if args.device else device
+    if args.device:
+        device = args.device
+    
     train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
