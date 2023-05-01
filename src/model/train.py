@@ -1,13 +1,3 @@
-try:
-    import torch_xla
-    xla_available = torch_xla.is_available()
-
-    import torch_xla.core.xla_model as xm
-    xla_device = xm.xla_device()
-except ImportError:
-    xla_available = False
-    xla_device = 'cpu'
-
 import argparse
 import os
 
@@ -34,14 +24,14 @@ training_loss_history = []
 device = "cuda" if torch.cuda.is_available() else "cpu"
 if mps.is_built():
     device = torch.device("mps")
-elif xla_available:
-    device = xla_device
+
 
 
 def main():
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
+    device = args.device if args.device else device
     train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
@@ -189,6 +179,7 @@ class HyperparamArgs:
         self.dropout: float = namespace.dropout
         self.in_jupyter: bool = bool(namespace.in_jupyter)
         self.from_pretrained: str = namespace.from_pretrained
+        self.device: str = namespace.device
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -200,6 +191,7 @@ class HyperparamArgs:
         dropout: {self.dropout}
         in_jupyter: {self.in_jupyter}
         from_pretrained: {self.from_pretrained}
+        device: {self.device}
         """
 
 
@@ -263,6 +255,12 @@ def parse_arguments() -> HyperparamArgs:
         default="model_cache",
         type=str,
         help="Pretrained file checkpoint to load",
+    )
+    parser.add_argument(
+        "--device",
+        default=None,
+        type=str,
+        help="Accelerator device to use (supports: cuda, cpu, mps, xla.)",
     )
 
     return HyperparamArgs(parser.parse_args())
