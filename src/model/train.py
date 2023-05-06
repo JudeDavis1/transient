@@ -1,7 +1,7 @@
 import argparse
 import os
-import torch
 
+import torch
 from matplotlib import pyplot as plt
 from torch.backends import mps
 from torch.cuda.amp import GradScaler, autocast
@@ -58,7 +58,6 @@ def main():
 
     runner.use_parallel_if_available()
     runner.model.train()
-    
 
     # print the number of parameters in the model
     logger.info(
