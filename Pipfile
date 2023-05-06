@@ -16,6 +16,7 @@ argparse = "*"
 requests = "*"
 torch-xla = "*"
 importlib-resources = "*"
+python-dotenv = "*"
 
 [dev-packages]
 autoflake = "*"

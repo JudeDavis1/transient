@@ -1,4 +1,0 @@
-__pycache__
-model_cache
-models/*.pt
-.ipynb_checkpoints/

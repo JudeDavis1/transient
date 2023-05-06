@@ -10,7 +10,6 @@ import tarfile
 
 import torch
 import torch.nn as nn
-
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -103,12 +102,12 @@ class TransientRunner:
             print()
 
         return idx
-    
+
     def score_accuracy(
         self,
         dataset: BookCorpusDataset,
-        n_samples: int=10,
-        block_size: int=3,
+        n_samples: int = 10,
+        block_size: int = 3,
     ) -> float:
         """Score the accuracy of the model on a set of samples"""
 
@@ -128,7 +127,7 @@ class TransientRunner:
             # compute accuracy
             correct += int(predictions.tolist() == y.tolist())
             pbar.set_description(f"Correct: {correct}")
-        
+
         accuracy = correct / n_samples
         return accuracy
 

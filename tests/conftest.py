@@ -52,6 +52,6 @@ def model_runner() -> TransientRunner:
 def pretrained_model(model_runner: TransientRunner) -> TransientRunner:
     """Load a pretrained model"""
 
-    model_runner.load(load_cache='model_cache', map_location='cpu')
+    model_runner.load(load_cache="model_cache", map_location="cpu")
     model_runner.model.eval()
     return model_runner
