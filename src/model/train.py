@@ -1,5 +1,6 @@
 import argparse
 import os
+import torch
 
 from matplotlib import pyplot as plt
 from torch.backends import mps
@@ -21,6 +22,8 @@ val_interval = 15
 val_loss_history = []
 training_loss_history = []
 
+# # for unsupported GPUs when compiling the model
+# torch._C._dynamo.config.suppress_errors = True
 device = "cuda" if torch.cuda.is_available() else "cpu"
 if mps.is_built():
     device = torch.device("mps")
@@ -101,7 +104,7 @@ def main():
                 loss: torch.Tensor = loss / args.gradient_acc
 
             scaler.scale(loss.mean()).backward()
-            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=2.0)
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=1.0)
 
             total_loss += loss.mean().item()
             scheduler.step()
