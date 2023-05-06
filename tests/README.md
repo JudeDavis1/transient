@@ -8,4 +8,4 @@ $ make test
 - To avoid module version conflicts
 - Avoiding the import errors caused by the python environment
 - So that the tests can be run on any machine
-- So we can test the code on different python versions if needed
+- Avoiding OS related errors
