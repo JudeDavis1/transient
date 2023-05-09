@@ -1,4 +1,5 @@
-# Scrape bible verses from wol-api
+"""Scrape bible verses from wol-api"""
+
 from typing import Tuple
 
 import requests
@@ -8,7 +9,6 @@ from src import logger
 
 first_book = 50
 max_books = 66
-cache_interval = 10
 
 
 def main():

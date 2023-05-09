@@ -51,7 +51,11 @@ def main():
         dropout=args.dropout,
     )
     runner.to_device(device)
-    runner.compile_model()
+
+    try:
+        runner.compile_model()
+    except RuntimeError as e:
+        print(e)
 
     if os.path.exists(args.from_pretrained):
         runner.load(args.from_pretrained, map_location=device)
