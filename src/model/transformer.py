@@ -19,7 +19,7 @@ from src import logger
 from src.config import Config
 from src.dataset.dataset import BookCorpusDataset
 
-dataset = BookCorpusDataset()
+dataset = BookCorpusDataset(folder="data")
 
 # unique characters that occur in this text
 tokens = dataset.corpus
@@ -142,16 +142,9 @@ class TransientRunner:
     def load(self, load_cache=None, **kwargs):
         logger.info("[*] Loading model:", self.transformer_model_name)
 
-        if load_cache:
-            if os.path.exists(load_cache):
-                # load the uncompressed copy
-                self.model.load_state_dict(torch.load(load_cache, **kwargs))
-                return
-
-        with tarfile.open(self.transformer_model_name, "r:gz") as f:
-            self.model.load_state_dict(
-                torch.load(f.extractfile(self.cache_dir), **kwargs)
-            )
+        if os.path.exists(load_cache):
+            # load the uncompressed copy
+            self.model.load_state_dict(torch.load(load_cache, **kwargs))
 
     def save(self, save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
@@ -160,9 +153,6 @@ class TransientRunner:
             self.model = self.model.module
 
         torch.save(self.model.state_dict(), self.cache_dir)
-        with tarfile.open(self.transformer_model_name, "w:gz") as f:
-            # compression for transport
-            f.add(self.cache_dir)
 
     def _init_weights(self, m: nn.Module):
         normal_dist = lambda param: nn.init.normal_(param, mean=0.0, std=0.02)
