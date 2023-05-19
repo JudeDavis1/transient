@@ -1,19 +1,21 @@
 import io
+import sys
+import bs4
 import string
+import requests
+
 from collections import deque
 from typing import List, Union
 
-import bs4
-import requests
 
 from src import logger
 
 
 def test():
     crawler = Crawler()
-    crawler.crawl("https://en.wikipedia.org/wiki/Chess", max_depth=500)
+    crawler.crawl("https://en.wikipedia.org/wiki/Chess", max_depth=int(sys.argv[1]))
 
-    with io.open("../../data/wiki.txt", "a", encoding="utf-8") as f:
+    with io.open("./data/wiki.txt", "a", encoding="utf-8") as f:
         f.writelines(crawler.get_text())
 
 

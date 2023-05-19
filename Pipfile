@@ -33,3 +33,5 @@ train = "python -m src.model.train"
 eval = "python -m src.model.evaluate"
 scrape-bible = "python -m src.dataset.get_bible_verses"
 test = "pytest ./tests --disable-warnings"
+scrape-wiki = "python -m src.dataset.crawler"
+
