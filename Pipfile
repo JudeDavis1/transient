@@ -17,6 +17,7 @@ requests = "*"
 torch-xla = "*"
 importlib-resources = "*"
 python-dotenv = "*"
+tokenizers = "*"
 
 [dev-packages]
 autoflake = "*"
@@ -34,4 +35,3 @@ eval = "python -m src.model.evaluate"
 scrape-bible = "python -m src.dataset.get_bible_verses"
 test = "pytest ./tests --disable-warnings"
 scrape-wiki = "python -m src.dataset.crawler"
-
