@@ -82,12 +82,12 @@ class BookCorpusDataset(Dataset):
         self.prep_data = []
         if os.path.exists(self.train_data_file):
             logger.info(f"Loading training data: {self.train_data_file}")
-            self.train_data: np.ndarray = np.load(self.train_data_file)
+            self.train_data: np.ndarray = np.load(self.train_data_file, allow_pickle=True)
             logger.info(self.train_data.shape)
             return
 
         self.limit = float("inf")
-        self.train_data = np.array(self.encode(tokenized, self.limit))
+        self.train_data = np.array(self.encode(self.file_contents, self.limit))
 
         np.save(self.train_data_file, self.train_data)
         logger.info("All elements exist:", all(self.train_data))
@@ -143,7 +143,7 @@ class BookCorpusDataset(Dataset):
 
         # return l_idx
         if isinstance(s, list):
-            return self.tokenizer.encode_batch(s)
+            return [t.ids for t in self.tokenizer.encode_batch(s)][0]
         return self.tokenizer.encode(s).ids
 
     def decode(self, l, idx=True):
