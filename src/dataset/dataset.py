@@ -142,7 +142,8 @@ class BookCorpusDataset(Dataset):
         #         break
 
         # return l_idx
-
+        if isinstance(s, list):
+            return self.tokenizer.encode_batch(s)
         return self.tokenizer.encode(s).ids
 
     def decode(self, l, idx=True):
