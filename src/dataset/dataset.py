@@ -63,13 +63,10 @@ class BookCorpusDataset(Dataset):
         )
         # self.tokenizer = nltk.tokenize.RegexpTokenizer(r"\w+|\s+|[^\w\s]+")
         self.tokenizer = Tokenizer.from_file("bpe_model.json")
-
         self.file_contents = self._run_load_corpus(folder=folder, just_contents=True)
         tokenized = self.tokenize(self.file_contents)
-        self.corpus = sorted(
-            list(set([*tokenized]))
-        )
-        self.vocab_size = len(self.corpus)
+        self.corpus = self.tokenizer.get_vocab().keys()
+        self.vocab_size = self.tokenizer.get_vocab_size()
 
         # sets of features and labels
         self.x_data = []

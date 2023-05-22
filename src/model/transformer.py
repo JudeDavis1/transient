@@ -6,7 +6,6 @@ All relevant modules for the transformer architecture.
 
 import os
 import sys
-import tarfile
 
 import torch
 import torch.nn as nn
@@ -25,7 +24,6 @@ dataset = BookCorpusDataset(folder="data")
 tokens = dataset.corpus
 vocab_size = dataset.vocab_size
 logger.info("Vocab size:", vocab_size)
-
 
 class TransientRunner:
     def __init__(

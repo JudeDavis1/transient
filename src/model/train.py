@@ -92,8 +92,8 @@ def main():
         for j, (xb, yb) in enumerate(train_data):
             cur_step = (1 + iter) * j
 
-            xb = xb.to(device, non_blocking=True)
-            yb = yb.to(device, non_blocking=True)
+            xb = xb.to(device)
+            yb = yb.to(device)
 
             # with mixed precision
             with autocast(enabled=args.use_mixed_precision and device == "cuda"):
@@ -163,7 +163,7 @@ def get_batch(dataloader: DataLoader):
 
     x, y = next(iter(dataloader))
 
-    return (x.to(device, non_blocking=True), y.to(device, non_blocking=True))
+    return (x.to(device), y.to(device))
 
 
 class FakeGradScaler:
