@@ -90,7 +90,7 @@ def main():
 
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
-            cur_step = (1 + iter) * j
+            cur_step = (i * len(train_data)) + j
 
             xb = xb.to(device)
             yb = yb.to(device)
