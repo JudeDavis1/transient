@@ -1,5 +1,6 @@
 __pycache__
-model_cache
+*_cache
 models/*.pt
 .ipynb_checkpoints/
 .env*
+run.sh

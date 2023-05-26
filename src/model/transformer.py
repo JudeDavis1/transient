@@ -73,13 +73,12 @@ class TransientRunner:
 
     def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
         """Generate new tokens from the model iteratively"""
-        cpu_dev = torch.device("cpu")
 
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
             idx_cond = idx[:, -self.block_size :]
-            logits, _ = self.model(idx_cond)
+            logits, _ = self.model(idx_cond, device=self.device)
 
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
@@ -91,9 +90,9 @@ class TransientRunner:
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
             if display:
-                scalar_idx = idx_next.flatten().to(cpu_dev).numpy()
+                scalar_idx = idx_next.flatten().cpu().numpy()
 
-                sys.stdout.write(dataset.decode(scalar_idx[0]))
+                sys.stdout.write(dataset.decode([scalar_idx[0]]))
                 sys.stdout.flush()
 
         if display:
@@ -223,6 +222,7 @@ class TransformerModel(nn.Module):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             targets = targets.view(B * T)
+
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss

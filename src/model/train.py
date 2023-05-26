@@ -18,6 +18,7 @@ dataset.generate_batches(Config.BLOCK_SIZE)
 data = dataset.prep_data
 n = int(0.97 * len(data))
 val_interval = 15
+optimizer_checkpoint_name = "optimizer_cache"
 
 val_loss_history = []
 training_loss_history = []
@@ -39,7 +40,7 @@ def main():
 
         device = xm.xla_device()
 
-    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True)
+    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=1)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
     # model with hyperparams
@@ -52,10 +53,10 @@ def main():
     )
     runner.to_device(device)
 
-    try:
-        runner.compile_model()
-    except RuntimeError as e:
-        print(e)
+    # try:
+    #     runner.compile_model()
+    # except RuntimeError as e:
+    #     print(e)
 
     if os.path.exists(args.from_pretrained):
         runner.load(args.from_pretrained, map_location=device)
@@ -68,9 +69,12 @@ def main():
         sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
     )
     optimizer = torch.optim.AdamW(
-        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), eps=1e-4
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95)
     )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=100)
+    if os.path.exists(optimizer_checkpoint_name):
+        optimizer.load_state_dict(torch.load(optimizer_checkpoint_name))
+    
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=50)
     scaler = (
         GradScaler()
         if args.use_mixed_precision and device == "cuda"
@@ -107,7 +111,7 @@ def main():
                 loss: torch.Tensor = loss / args.gradient_acc
 
             scaler.scale(loss.mean()).backward()
-            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=8.0)
 
             total_loss += loss.mean().item()
             scheduler.step()
@@ -125,6 +129,7 @@ def main():
                 total_loss = 0
 
     runner.save()
+    torch.save(optimizer.state_dict(), optimizer_checkpoint_name)
     show_loss(n_steps)
 
 
@@ -148,7 +153,7 @@ def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     for _ in range(eval_iters):
         X, Y = get_batch(dataloader)
 
-        _, loss = model(X, Y, device)
+        _, loss = model(X.to(device), Y.to(device), device)
         val_loss += loss.mean().item()
 
     # get the mean
