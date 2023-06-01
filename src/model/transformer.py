@@ -71,7 +71,14 @@ class TransientRunner:
         """Compile the model for training"""
         self.model = torch.compile(self.model)
 
-    def generate(self, idx: torch.Tensor, max_new_tokens, display=False):
+    def generate(
+        self,
+        idx: torch.Tensor,
+        max_new_tokens,
+        temperature: int = 0.5,
+        display=False,
+        greedy=True,
+    ):
         """Generate new tokens from the model iteratively"""
 
         # idx is (B, T) array of indices in the current context
@@ -82,17 +89,22 @@ class TransientRunner:
 
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
-            probs = F.softmax(logits, dim=-1)  # (B, C)
+            probs = F.softmax(logits / temperature, dim=-1)  # (B, C)
 
             # sample from the distribution
-            idx_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
+            if greedy:
+                idx_next = torch.argmax(probs) \
+                    .unsqueeze(-1) \
+                    .unsqueeze(-1).long()
+            else:
+                idx_next = torch.multinomial(probs, num_samples=1).long()
 
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
             if display:
                 scalar_idx = idx_next.flatten().cpu().numpy()
 
-                sys.stdout.write(dataset.decode([scalar_idx[0]]))
+                sys.stdout.write(dataset.decode([int(scalar_idx[0])]))
                 sys.stdout.flush()
 
         if display:
@@ -143,13 +155,13 @@ class TransientRunner:
             # load the uncompressed copy
             self.model.load_state_dict(torch.load(load_cache, **kwargs))
 
-    def save(self, save_cache=False):
+    def save(self, name="model_cache", save_cache=False):
         logger.info("[*] Saving model:", self.transformer_model_name)
 
         if self.is_parallel():
             self.model = self.model.module
 
-        torch.save(self.model.state_dict(), self.cache_dir)
+        torch.save(self.model.state_dict(), name)
 
     def _init_weights(self, m: nn.Module):
         normal_dist = lambda param: nn.init.normal_(param, mean=0.0, std=0.02)
@@ -275,6 +287,7 @@ class MultiHeadAttention(nn.Module):
         k = self.key(x).view(batch_size, T, self.n_heads, self.head_size)
         q = self.query(x).view(batch_size, T, self.n_heads, self.head_size)
         v = self.value(x).view(batch_size, T, self.n_heads, self.head_size)
+        
         k = k.transpose(1, 2)  # (B, nh, T, hs)
         q = q.transpose(1, 2)  # (B, nh, T, hs)
         v = v.transpose(1, 2)  # (B, nh, T, hs)

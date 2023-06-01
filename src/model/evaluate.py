@@ -28,7 +28,7 @@ def main():
             context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
 
             logger.info(context_str)
-            runner.generate(context.to(cpu_device), max_new_tokens=int(sys.argv[1]), display=True)
+            runner.generate(context.to(cpu_device), max_new_tokens=int(sys.argv[1]), display=True, temperature=0.1)
 
 
 if __name__ == "__main__":

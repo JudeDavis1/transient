@@ -19,6 +19,7 @@ data = dataset.prep_data
 n = int(0.97 * len(data))
 val_interval = 15
 optimizer_checkpoint_name = "optimizer_cache"
+min_lr = 0.00006
 
 val_loss_history = []
 training_loss_history = []
@@ -69,7 +70,7 @@ def main():
         sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
     )
     optimizer = torch.optim.AdamW(
-        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95)
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=1e-1
     )
     if os.path.exists(optimizer_checkpoint_name):
         optimizer.load_state_dict(torch.load(optimizer_checkpoint_name))
@@ -94,6 +95,9 @@ def main():
 
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
+            if scheduler.get_lr()[-1] < min_lr:
+                optimizer.param_groups[0]['lr'] = min_lr
+            
             cur_step = (iter * len(train_data)) + j
 
             xb = xb.to(device)
@@ -110,25 +114,25 @@ def main():
                 training_loss_history.append(loss.mean().item())
                 loss: torch.Tensor = loss / args.gradient_acc
 
-            scaler.scale(loss.mean()).backward()
-            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=8.0)
+                scaler.scale(loss.mean()).backward()
+                nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
 
-            total_loss += loss.mean().item()
-            scheduler.step()
+                total_loss += loss.mean().item()
+                scheduler.step()
 
-            if (cur_step + 1) % args.gradient_acc == 0 or (cur_step + 1) == n_steps:
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad(set_to_none=True)
+                if (cur_step + 1) % args.gradient_acc == 0 or (cur_step + 1) == n_steps:
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad(set_to_none=True)
 
-                val_loss_str = round(val_loss, 5) if val_loss else "N/A"
-                lr_str = scheduler.get_lr()[-1]
-                t.set_description(
-                    f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.4f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
-                )
-                total_loss = 0
+                    val_loss_str = round(val_loss, 5) if val_loss else "N/A"
+                    lr_str = scheduler.get_lr()[-1]
+                    t.set_description(
+                        f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.4f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
+                    )
+                    total_loss = 0
 
-    runner.save()
+    runner.save(args.save_to)
     torch.save(optimizer.state_dict(), optimizer_checkpoint_name)
     show_loss(n_steps)
 
@@ -197,6 +201,7 @@ class HyperparamArgs:
         self.in_jupyter: bool = bool(namespace.in_jupyter)
         self.from_pretrained: str = namespace.from_pretrained
         self.device: str = namespace.device
+        self.save_to: str = namespace.save_to
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -209,6 +214,7 @@ class HyperparamArgs:
         in_jupyter: {self.in_jupyter}
         from_pretrained: {self.from_pretrained}
         device: {self.device}
+        save_to: {self.save_to}
         """
 
 
@@ -278,6 +284,12 @@ def parse_arguments() -> HyperparamArgs:
         default=None,
         type=str,
         help="Accelerator device to use (supports: cuda, cpu, mps, xla.)",
+    )
+    parser.add_argument(
+        "--save-to",
+        default="model_cache",
+        type=str,
+        help="File to save to",
     )
 
     return HyperparamArgs(parser.parse_args())
