@@ -271,43 +271,56 @@ class MultiHeadAttention(nn.Module):
 
         self.n_heads = n_heads
         self.head_size = head_size
+        self.dropout_p = dropout
+        self.flash = True
+        self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
-        self.key = nn.Linear(n_embd, n_heads * head_size, bias=False)
-        self.query = nn.Linear(n_embd, n_heads * head_size, bias=False)
-        self.value = nn.Linear(n_embd, n_heads * head_size, bias=False)
+        self.c_attn = nn.Linear(n_embd, 3 * n_embd, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
-        self.proj = nn.Linear(self.n_heads * self.head_size, n_embd, bias=False)
+        self.proj = nn.Linear(n_embd, n_embd, bias=False)
 
     def forward(self, x) -> torch.Tensor:
         batch_size = x.size(0)
         B, T, C = x.shape
 
-        k = self.key(x).view(batch_size, T, self.n_heads, self.head_size)
-        q = self.query(x).view(batch_size, T, self.n_heads, self.head_size)
-        v = self.value(x).view(batch_size, T, self.n_heads, self.head_size)
+        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
+
+        q = q.view(batch_size, T, self.n_heads, self.head_size)
+        k = k.view(batch_size, T, self.n_heads, self.head_size)
+        v = v.view(batch_size, T, self.n_heads, self.head_size)
         
-        k = k.transpose(1, 2)  # (B, nh, T, hs)
         q = q.transpose(1, 2)  # (B, nh, T, hs)
+        k = k.transpose(1, 2)  # (B, nh, T, hs)
         v = v.transpose(1, 2)  # (B, nh, T, hs)
 
-        # compute attention scores
-        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
-        scores = scores.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
-        attn = F.softmax(scores, dim=-1)
-        attn = self.dropout(attn)
+        if self.flash:
+            dropout_p = self.dropout_p
+            is_causal = True
+            if not self.training:
+                dropout_p = 0
+                is_causal = False
 
-        # compute values and attention output
-        out = torch.matmul(attn, v).view(batch_size, T, self.n_heads * self.head_size)
+            
+            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal)
+
+        else:
+            # compute attention scores
+            scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
+            scores = scores.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
+            attn = F.softmax(scores, dim=-1)
+
+            # compute values and attention output
+            out = torch.matmul(attn, v).view(batch_size, T, self.n_embd)
 
         # join heads concatenating along the last dimension
         out = (
             out.transpose(1, 2)
             .contiguous()
-            .view(batch_size, -1, self.n_heads * self.head_size)
+            .view(B, T, C)
         )
-        out = self.proj(out)
+        out = self.dropout(self.proj(out))
 
         return out
 
@@ -330,7 +343,6 @@ class FeedForward(nn.Module):
         x = F.gelu(x)
         x = self.fd2(x)
         x = self.dropout(x)
-        x = self.ln(x)
         return x
 
 
