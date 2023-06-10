@@ -64,7 +64,6 @@ class BookCorpusDataset(Dataset):
         # self.tokenizer = nltk.tokenize.RegexpTokenizer(r"\w+|\s+|[^\w\s]+")
         self.tokenizer = Tokenizer.from_file("bpe_model.json")
         self.file_contents = self._run_load_corpus(folder=folder, just_contents=True)
-        tokenized = self.tokenize(self.file_contents)
         self.corpus = self.tokenizer.get_vocab().keys()
         self.vocab_size = self.tokenizer.get_vocab_size()
 
@@ -93,11 +92,9 @@ class BookCorpusDataset(Dataset):
     def generate_batches(self, chunk_size):
         self.chunk_size = chunk_size
 
-        beginning = 0
-        next_idx = self.chunk_size
+        for i in range(0, len(self.train_data) - self.chunk_size, self.chunk_size):
+            sample = self.get_batch(i, i + self.chunk_size)
 
-        while True:
-            sample = self.get_batch(beginning, next_idx)
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
 
@@ -109,9 +106,6 @@ class BookCorpusDataset(Dataset):
 
             # add pairs
             self.prep_data.append(sample)
-
-            beginning = next_idx
-            next_idx = beginning + self.chunk_size
 
     def get_batch(self, beginning, next_idx):
         starting_phrase = self.train_data[beginning:next_idx]

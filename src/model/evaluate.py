@@ -7,6 +7,10 @@ from src.model.transformer import *
 
 
 def main():
+    mode = None
+    if len(sys.argv) > 2:
+        mode = sys.argv[2]
+
     os.environ['TOKENIZERS_PARALLELISM'] = "false"
     with torch.no_grad():
         cpu_device = torch.device("cuda")
@@ -17,8 +21,15 @@ def main():
             n_heads=Config.N_HEADS,
         )
         runner.to_device(cpu_device)
+
+        fname = "model_cache"
+        if mode == "dropout":
+            fname = "model_with_dropout_cache"
+        
+        logger.INFO("Loading", fname)
+        
+        runner.load(fname, map_location=cpu_device)
         runner.model.eval()
-        runner.load("model_cache", map_location=cpu_device)
 
         # accuracy = runner.score_accuracy(dataset, n_samples=100)
         # logger.info(f"Accuracy: {accuracy}")
@@ -28,7 +39,13 @@ def main():
             context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
 
             logger.info(context_str)
-            runner.generate(context.to(cpu_device), max_new_tokens=int(sys.argv[1]), display=True, temperature=0.1)
+            runner.generate(
+                context.to(cpu_device),
+                max_new_tokens=int(sys.argv[1]),
+                display=True,
+                temperature=0.9,
+                greedy=False,
+            )
 
 
 if __name__ == "__main__":

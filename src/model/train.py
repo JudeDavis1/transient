@@ -16,10 +16,13 @@ dataset.generate_batches(Config.BLOCK_SIZE)
 
 # train and test splits
 data = dataset.prep_data
-n = int(0.97 * len(data))
-val_interval = 15
+n = int(0.98 * len(data))
+val_interval = 8
 optimizer_checkpoint_name = "optimizer_cache"
-min_lr = 0.00006
+min_lr = 0.00004
+grad_max_norm = 1.0
+max_warmup_steps = 1000
+should_warmup = True
 
 val_loss_history = []
 training_loss_history = []
@@ -32,13 +35,15 @@ if mps.is_built():
 
 
 def main():
-    global device
+    global device, min_lr, should_warmup
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
+    if args.dropout:
+        min_lr = 0.000008
+
     if args.device == "xla":
         import torch_xla.core.xla_model as xm
-
         device = xm.xla_device()
 
     train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=1)
@@ -73,9 +78,10 @@ def main():
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=1e-1
     )
     if os.path.exists(optimizer_checkpoint_name):
+        should_warmup = False
         optimizer.load_state_dict(torch.load(optimizer_checkpoint_name))
     
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=50)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.99, step_size=20)
     scaler = (
         GradScaler()
         if args.use_mixed_precision and device == "cuda"
@@ -96,9 +102,12 @@ def main():
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
             if scheduler.get_lr()[-1] < min_lr:
-                optimizer.param_groups[0]['lr'] = min_lr
+                set_lr(optimizer, min_lr)
             
             cur_step = (iter * len(train_data)) + j
+            if should_warmup and cur_step <= max_warmup_steps:
+                new_lr = (args.lr / max_warmup_steps) * cur_step
+                set_lr(optimizer, new_lr)
 
             xb = xb.to(device)
             yb = yb.to(device)
@@ -106,7 +115,7 @@ def main():
             # with mixed precision
             with autocast(enabled=args.use_mixed_precision and device == "cuda"):
                 if (cur_step + 1) % val_interval == 0:
-                    val_loss = get_val_loss(runner.model, val_data, eval_iters=2)
+                    val_loss = get_val_loss(runner.model, val_data, eval_iters=4)
 
                 # evaluate the loss
                 _, loss = runner.forward(xb, yb)
@@ -115,7 +124,7 @@ def main():
                 loss: torch.Tensor = loss / args.gradient_acc
 
                 scaler.scale(loss.mean()).backward()
-                nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=4.0)
+                nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=grad_max_norm)
 
                 total_loss += loss.mean().item()
                 scheduler.step()
@@ -125,10 +134,10 @@ def main():
                     scaler.update()
                     optimizer.zero_grad(set_to_none=True)
 
-                    val_loss_str = round(val_loss, 5) if val_loss else "N/A"
+                    val_loss_str = round(val_loss, 6) if val_loss else "N/A"
                     lr_str = scheduler.get_lr()[-1]
                     t.set_description(
-                        f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.4f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
+                        f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
                     )
                     total_loss = 0
 
@@ -137,6 +146,9 @@ def main():
     show_loss(n_steps)
 
 
+def set_lr(optimizer, new_lr):
+    optimizer.param_groups[0]['lr'] = new_lr
+
 def show_loss(epochs):
     """Display training and validation loss history on graph"""
 
@@ -144,7 +156,7 @@ def show_loss(epochs):
     plt.plot(epoch_l, training_loss_history, label="Training loss")
     plt.plot(epoch_l, val_loss_history, label="Validation loss")
     plt.legend()
-    plt.show()
+    plt.savefig("loss_history.png")
 
 
 @torch.no_grad()
