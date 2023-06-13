@@ -22,10 +22,7 @@ def main():
         )
         runner.to_device(cpu_device)
 
-        fname = "model_cache"
-        if mode == "dropout":
-            fname = "model_with_dropout_cache"
-        
+        fname = sys.argv[2]
         logger.INFO("Loading", fname)
         
         runner.load(fname, map_location=cpu_device)
@@ -38,12 +35,12 @@ def main():
             context_str = input("> ")
             context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
 
-            logger.info(context_str)
+            logger.info(context_str, end='')
             runner.generate(
                 context.to(cpu_device),
                 max_new_tokens=int(sys.argv[1]),
                 display=True,
-                temperature=0.9,
+                temperature=0.7,
                 greedy=False,
             )
 

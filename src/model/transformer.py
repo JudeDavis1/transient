@@ -215,6 +215,7 @@ class TransformerModel(nn.Module):
 
         # final layer norm
         self.ln_f = RMSNorm(n_embd)
+        self.dec_dropout = nn.Dropout(self.dropout)
         self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
 
     def forward(self, idx, targets=None, device=None):
@@ -223,9 +224,9 @@ class TransformerModel(nn.Module):
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_table(idx)  # (B, T, C)
         pos_embed = self.position_table(torch.arange(T, device=device))  # (T, C)
-        x = token_embed + pos_embed  # (B, T, C)
+        x = self.dec_dropout(token_embed + pos_embed)  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
-        x = self.ln_f(x)  # (B, T, C)
+        x = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
 
         if targets is None:
@@ -254,11 +255,12 @@ class Block(nn.Module):
         self.ffwd = FeedForward(n_embd, dropout)
         self.ln1 = RMSNorm(n_embd)
         self.ln2 = RMSNorm(n_embd)
+        self.block_dropout = nn.Dropout(dropout)
 
     def forward(self, x) -> torch.Tensor:
         """Add residual connections around each block"""
-        x = self.ln1(x + self.sa_block(x))
-        x = self.ln2(x + self.ffwd(x))
+        x = self.ln1(x + self.block_dropout(self.sa_block(x)))
+        x = self.ln2(x + self.block_dropout(self.ffwd(x)))
 
         return x
 
@@ -301,10 +303,8 @@ class MultiHeadAttention(nn.Module):
             if not self.training:
                 dropout_p = 0
                 is_causal = False
-
             
             out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal)
-
         else:
             # compute attention scores
             scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
@@ -349,7 +349,7 @@ class FeedForward(nn.Module):
 class RMSNorm(torch.nn.Module):
     """Normalization which is the same as the one LLaMA uses"""
 
-    def __init__(self, dim: int, eps: float = 3e-5):
+    def __init__(self, dim: int, eps: float = 1e-5):
         super().__init__()
 
         self.eps = eps
