@@ -278,10 +278,10 @@ class MultiHeadAttention(nn.Module):
         self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
-        self.c_attn = nn.Linear(n_embd, 3 * n_embd, bias=False)
+        self.c_attn = nn.Linear(n_embd, 3 * n_embd)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
-        self.proj = nn.Linear(n_embd, n_embd, bias=False)
+        self.proj = nn.Linear(n_embd, n_embd)
 
     def forward(self, x) -> torch.Tensor:
         batch_size = x.size(0)
@@ -331,8 +331,8 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.fd1 = nn.Linear(n_embd, 4 * n_embd, bias=False)
-        self.fd2 = nn.Linear(4 * n_embd, n_embd, bias=False)
+        self.fd1 = nn.Linear(n_embd, 4 * n_embd)
+        self.fd2 = nn.Linear(4 * n_embd, n_embd)
         self.ln = RMSNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 

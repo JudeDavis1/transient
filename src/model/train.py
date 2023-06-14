@@ -78,7 +78,7 @@ def main():
         sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
     )
     optimizer = torch.optim.AdamW(
-        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=1e-1
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), weight_decay=0.1
     )
     if os.path.exists(optimizer_checkpoint_name) and pretrained_model_exists:
         should_warmup = False
