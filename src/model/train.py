@@ -48,7 +48,7 @@ def main():
         device = xm.xla_device()
     
     random.shuffle(data)
-    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=1)
+    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=0)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
     # model with hyperparams
