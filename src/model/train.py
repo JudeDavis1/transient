@@ -1,7 +1,8 @@
-import argparse
 import os
-
 import torch
+import random
+import argparse
+
 from matplotlib import pyplot as plt
 from torch.backends import mps
 from torch.cuda.amp import GradScaler, autocast
@@ -20,7 +21,7 @@ n = int(0.98 * len(data))
 val_interval = 8
 optimizer_checkpoint_name = "optimizer_cache"
 min_lr = 0.00004
-grad_max_norm = 1.0
+grad_max_norm = 4.0
 max_warmup_steps = 1000
 should_warmup = True
 
@@ -40,12 +41,13 @@ def main():
     logger.special(args)
 
     if args.dropout:
-        min_lr = 0.000008
+        min_lr = 0.00002
 
     if args.device.startswith("xla"):
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
-
+    
+    random.shuffle(data)
     train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=1)
     val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
 
@@ -64,7 +66,8 @@ def main():
     # except RuntimeError as e:
     #     print(e)
 
-    if os.path.exists(args.from_pretrained):
+    pretrained_model_exists = os.path.exists(args.from_pretrained)
+    if pretrained_model_exists:
         runner.load(args.from_pretrained, map_location=device)
 
     runner.use_parallel_if_available()
@@ -75,13 +78,13 @@ def main():
         sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
     )
     optimizer = torch.optim.AdamW(
-        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.95), weight_decay=1e-1
+        runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), weight_decay=0.1
     )
-    if os.path.exists(optimizer_checkpoint_name):
+    if os.path.exists(optimizer_checkpoint_name) and pretrained_model_exists:
         should_warmup = False
         optimizer.load_state_dict(torch.load(optimizer_checkpoint_name))
     
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.99, step_size=20)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=20)
     scaler = (
         GradScaler()
         if args.use_mixed_precision and device == "cuda"
@@ -99,11 +102,13 @@ def main():
     n_steps_per_batch = len(train_data)
     n_steps = args.epochs * n_steps_per_batch
 
+    # set_lr(optimizer, 0.00006)
+
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
             if scheduler.get_lr()[-1] < min_lr:
                 set_lr(optimizer, min_lr)
-            
+
             cur_step = (iter * len(train_data)) + j
             if should_warmup and cur_step <= max_warmup_steps:
                 new_lr = (args.lr / max_warmup_steps) * cur_step

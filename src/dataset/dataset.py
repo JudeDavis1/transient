@@ -93,7 +93,7 @@ class BookCorpusDataset(Dataset):
         self.chunk_size = chunk_size
 
         for i in range(0, len(self.train_data) - self.chunk_size, self.chunk_size):
-            sample = self.get_batch(i, i + self.chunk_size)
+            sample = self.get_batch(i)
 
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
@@ -107,9 +107,9 @@ class BookCorpusDataset(Dataset):
             # add pairs
             self.prep_data.append(sample)
 
-    def get_batch(self, beginning, next_idx):
-        starting_phrase = self.train_data[beginning:next_idx]
-        target_word = self.train_data[next_idx : next_idx + self.chunk_size]
+    def get_batch(self, idx):
+        starting_phrase = self.train_data[idx:idx + self.chunk_size]
+        target_word = self.train_data[idx + 1 : idx + 1 + self.chunk_size]
 
         return (starting_phrase, target_word)
 
