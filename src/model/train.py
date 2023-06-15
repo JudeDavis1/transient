@@ -42,7 +42,7 @@ def main():
     if args.dropout:
         min_lr = 0.000008
 
-    if args.device == "xla":
+    if args.device.startswith("xla"):
         import torch_xla.core.xla_model as xm
         device = xm.xla_device()
 
