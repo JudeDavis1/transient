@@ -12,7 +12,7 @@ from tokenizers.trainers import BpeTrainer
 
 
 tokenizer = ByteLevelBPETokenizer()
-tokenizer.train(vocab_size=30_000, files=["data/wiki.txt"], min_frequency=2)
+tokenizer.train(vocab_size=50432, files=["data/wiki.txt"], min_frequency=2)
 
 print("[*] Saving the tokenizer...")
 tokenizer.save("bpe_model.json")
