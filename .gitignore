@@ -3,4 +3,4 @@ __pycache__
 models/*.pt
 .ipynb_checkpoints/
 .env*
-run.sh
+
