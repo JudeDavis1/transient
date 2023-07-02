@@ -128,23 +128,23 @@ def main():
                 training_loss_history.append(loss.mean().item())
                 loss: torch.Tensor = loss / args.gradient_acc
 
-                scaler.scale(loss.mean()).backward()
-                nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=grad_max_norm)
+            scaler.scale(loss.mean()).backward()
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=grad_max_norm)
 
-                total_loss += loss.mean().item()
-                scheduler.step()
+            total_loss += loss.mean().item()
+            scheduler.step()
 
-                if (cur_step + 1) % args.gradient_acc == 0 or (cur_step + 1) == n_steps:
-                    scaler.step(optimizer)
-                    scaler.update()
-                    optimizer.zero_grad(set_to_none=True)
+            if (cur_step + 1) % args.gradient_acc == 0 or (cur_step + 1) == n_steps:
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad(set_to_none=True)
 
-                    val_loss_str = round(val_loss, 6) if val_loss else "N/A"
-                    lr_str = scheduler.get_lr()[-1]
-                    t.set_description(
-                        f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
-                    )
-                    total_loss = 0
+                val_loss_str = round(val_loss, 6) if val_loss else "N/A"
+                lr_str = scheduler.get_lr()[-1]
+                t.set_description(
+                    f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
+                )
+                total_loss = 0
 
     runner.save(args.save_to)
     torch.save(optimizer.state_dict(), optimizer_checkpoint_name)
