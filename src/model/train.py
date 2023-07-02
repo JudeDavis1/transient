@@ -61,10 +61,10 @@ def main():
     )
     runner.to_device(device)
 
-    # try:
-    #     runner.compile_model()
-    # except RuntimeError as e:
-    #     print(e)
+    try:
+        runner.compile_model()
+    except RuntimeError as e:
+        print(e)
 
     pretrained_model_exists = os.path.exists(args.from_pretrained)
     if pretrained_model_exists:
