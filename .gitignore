@@ -3,4 +3,5 @@ __pycache__
 models/*.pt
 .ipynb_checkpoints/
 .env*
-
+.DS_Store
+train_data.gz.npy

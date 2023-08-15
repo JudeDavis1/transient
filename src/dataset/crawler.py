@@ -4,6 +4,7 @@ import bs4
 import string
 import requests
 
+from tqdm import tqdm
 from collections import deque
 from typing import List, Union
 
@@ -15,6 +16,7 @@ def test():
     crawler = Crawler()
     crawler.crawl("https://en.wikipedia.org/wiki/Chess", max_depth=int(sys.argv[1]))
 
+    logger.INFO(f"Writing to file...")
     with io.open("./data/wiki.txt", "a", encoding="utf-8") as f:
         f.writelines(crawler.get_text())
 
@@ -53,8 +55,10 @@ class Crawler:
         """
 
         i = 0
+        pbar = tqdm(total=max_depth)
         while i < max_depth:
-            logger.INFO(f"Visiting - {page}")
+            pbar.update(1)
+            logger.INFO(f"Visiting {i + 1}/{max_depth} - {page}", engine=tqdm.write)
             self.visited_pages.add(page)
             # Deque a page from the queue
             page = self.frontier.popleft() if self.frontier else page
@@ -62,7 +66,7 @@ class Crawler:
             try:
                 src = requests.get(page).text
             except:
-                logger.CRITICAL(f"Request error with page: {page}")
+                logger.CRITICAL(f"Request error with page: {page}", engine=tqdm.write)
                 continue
 
             soup = bs4.BeautifulSoup(src, "html.parser")
@@ -77,10 +81,11 @@ class Crawler:
             for link in soup.find_all("a"):
                 link = link.get("href")
 
+                # If the link doesn't exist or has already been visited, skip it
                 if not link or link in self.visited_pages:
                     continue
                 if not self._url_is_valid(link):
-                    logger.CRITICAL(f"Invalid URL: {page}")
+                    logger.CRITICAL(f"Invalid URL: {page}", engine=tqdm.write)
                     continue
 
                 if link.startswith("/"):
