@@ -99,8 +99,12 @@ def main():
     else:
         t = tqdm(range(args.epochs))
 
-    n_steps_per_batch = len(train_data)
-    n_steps = args.epochs * n_steps_per_batch
+    n_steps_per_batch = len(train_data) // args.gradient_acc
+    n_steps = args.epochs * (n_steps_per_batch)
+    if args.in_jupyter:
+        t = tqdm_notebook(range(args.epochs))
+    else:
+        t = tqdm(range(args.epochs))
 
     # set_lr(optimizer, 0.00006)
 
@@ -141,10 +145,13 @@ def main():
 
                 val_loss_str = round(val_loss, 6) if val_loss else "N/A"
                 lr_str = scheduler.get_lr()[-1]
+
+                update_num = (j // args.gradient_acc) + 1
                 t.set_description(
-                    f"Epoch {iter} - Batch: {j + 1}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
+                    f"Epoch {iter} - Batch: {update_num}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
                 )
                 total_loss = 0
+            
 
     runner.save(args.save_to)
     torch.save(optimizer.state_dict(), optimizer_checkpoint_name)
