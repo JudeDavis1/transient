@@ -75,7 +75,7 @@ def main():
 
     # print the number of parameters in the model
     logger.info(
-        sum(p.numel() for p in runner.model.parameters()) // 1_000_000, "M parameters"
+        sum(p.numel() for p in runner.model.parameters() if p.requires_grad) // 1_000_000, "M parameters"
     )
     optimizer = torch.optim.AdamW(
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), weight_decay=0.1

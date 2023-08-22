@@ -331,19 +331,19 @@ class FeedForward(nn.Module):
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.fd1 = nn.Linear(n_embd, 4 * n_embd)
-        self.fd2 = nn.Linear(4 * n_embd, n_embd)
+        self.fd1 = nn.Conv1d(n_embd, 4 * n_embd, 1)
+        self.fd2 = nn.Conv1d(4 * n_embd, n_embd, 1)
         self.ln = RMSNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x) -> torch.Tensor:
         # x.shape = (batch_size, seq_length, n_embd)
-        # x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
+        x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
         x = self.fd1(x)
         x = F.gelu(x)
         x = self.fd2(x)
         x = self.dropout(x)
-        return x
+        return x.transpose(1, 2)
 
 
 class RMSNorm(torch.nn.Module):
