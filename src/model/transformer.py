@@ -274,7 +274,7 @@ class MultiHeadAttention(nn.Module):
         self.n_heads = n_heads
         self.head_size = head_size
         self.dropout_p = dropout
-        self.flash = False
+        self.flash = True
         self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
