@@ -224,7 +224,7 @@ class TransformerModel(nn.Module):
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_table(idx)  # (B, T, C)
         pos_embed = self.position_table(torch.arange(T, device=device))  # (T, C)
-        x = token_embed + pos_embed  # (B, T, C)
+        x = self.dec_dropout(token_embed + pos_embed)  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
         x = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
