@@ -299,12 +299,10 @@ class MultiHeadAttention(nn.Module):
 
         if self.flash:
             dropout_p = self.dropout_p
-            is_causal = True
             if not self.training:
                 dropout_p = 0
-                is_causal = False
             
-            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=is_causal)
+            out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=True)
         else:
             # compute attention scores
             scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
