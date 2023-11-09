@@ -9,7 +9,6 @@ with the book dataset. Also supports multithreading.
 
 import asyncio
 import os
-import string
 import warnings
 from tokenizers import Tokenizer
 from typing import Optional, Union
@@ -17,7 +16,6 @@ from typing import Optional, Union
 import nltk
 import numpy as np
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 warnings.filterwarnings("ignore")
 
@@ -116,32 +114,12 @@ class BookCorpusDataset(Dataset):
     def tokenize(self, text):
         return self.tokenizer.encode(text).tokens
 
-    def encode(self, s, limit=float("inf")):
-        # l_idx = []
-        # i = 0
-        # s = s if limit == float("inf") else s[:limit]
-        # for token in tqdm(s):
-        #     try:
-        #         token = self.corpus.index(token)
-        #     except ValueError:
-        #         token = self.corpus.index(token.lower())
-
-        #     l_idx.append(token)
-        #     i += 1
-
-        #     if i >= limit:
-        #         break
-
-        # return l_idx
+    def encode(self, s):
         if isinstance(s, list):
             return [t.ids for t in self.tokenizer.encode_batch(s)][0]
         return self.tokenizer.encode(s).ids
 
-    def decode(self, l, idx=True):
-        # if idx:
-        #     return self.corpus[l]
-
-        # return [self.corpus[idx] for idx in l]
+    def decode(self, l):
         return self.tokenizer.decode(l)
 
     def _run_load_corpus(self, folder="data", just_contents=False):

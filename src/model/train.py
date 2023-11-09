@@ -21,15 +21,13 @@ n = int(0.98 * len(data))
 val_interval = 8
 optimizer_checkpoint_name = "optimizer_cache"
 min_lr = 0.00004
-grad_max_norm = 4.0
-max_warmup_steps = 1000
+grad_max_norm = 1.0
+max_warmup_steps = 50
 should_warmup = True
 
 val_loss_history = []
 training_loss_history = []
 
-# # for unsupported GPUs when compiling the model
-# torch._C._dynamo.config.suppress_errors = True
 device = "cuda" if torch.cuda.is_available() else "cpu"
 if mps.is_built():
     device = torch.device("mps")
@@ -61,10 +59,10 @@ def main():
     )
     runner.to_device(device)
 
-    try:
-        runner.compile_model()
-    except RuntimeError as e:
-        print(e)
+    # try:
+    #     runner.compile_model()
+    # except RuntimeError as e:
+    #     print(e)
 
     pretrained_model_exists = os.path.exists(args.from_pretrained)
     if pretrained_model_exists:
@@ -106,8 +104,6 @@ def main():
     else:
         t = tqdm(range(args.epochs))
 
-    # set_lr(optimizer, 0.00006)
-
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
             if scheduler.get_lr()[-1] < min_lr:
@@ -128,8 +124,6 @@ def main():
 
                 # evaluate the loss
                 _, loss = runner.forward(xb, yb)
-                val_loss_history.append(val_loss)
-                training_loss_history.append(loss.mean().item())
                 loss: torch.Tensor = loss / args.gradient_acc
 
             scaler.scale(loss.mean()).backward()
@@ -143,6 +137,9 @@ def main():
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
 
+                val_loss_history.append(val_loss)
+                training_loss_history.append(loss.mean().item())
+
                 val_loss_str = round(val_loss, 6) if val_loss else "N/A"
                 lr_str = scheduler.get_lr()[-1]
 
@@ -151,7 +148,7 @@ def main():
                     f"Epoch {iter} - Batch: {update_num}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
                 )
                 total_loss = 0
-            
+
 
     runner.save(args.save_to)
     torch.save(optimizer.state_dict(), optimizer_checkpoint_name)

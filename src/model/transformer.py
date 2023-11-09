@@ -224,7 +224,7 @@ class TransformerModel(nn.Module):
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_table(idx)  # (B, T, C)
         pos_embed = self.position_table(torch.arange(T, device=device))  # (T, C)
-        x = self.dec_dropout(token_embed + pos_embed)  # (B, T, C)
+        x = token_embed + pos_embed  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
         x = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
@@ -259,8 +259,8 @@ class Block(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         """Add residual connections around each block"""
-        x = self.ln1(x + self.block_dropout(self.sa_block(x)))
-        x = self.ln2(x + self.block_dropout(self.ffwd(x)))
+        x = x + self.block_dropout(self.sa_block(self.ln1(x)))
+        x = x + self.block_dropout(self.ffwd(self.ln2(x)))
 
         return x
 
@@ -274,7 +274,7 @@ class MultiHeadAttention(nn.Module):
         self.n_heads = n_heads
         self.head_size = head_size
         self.dropout_p = dropout
-        self.flash = True
+        self.flash = False
         self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
@@ -326,24 +326,21 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    """1D Convolutional FeedForward layer"""
 
     def __init__(self, n_embd, dropout):
         super().__init__()
 
-        self.fd1 = nn.Conv1d(n_embd, 4 * n_embd, 1)
-        self.fd2 = nn.Conv1d(4 * n_embd, n_embd, 1)
+        self.fd1 = nn.Linear(n_embd, 4 * n_embd)
+        self.fd2 = nn.Linear(4 * n_embd, n_embd)
         self.ln = RMSNorm(n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x) -> torch.Tensor:
-        # x.shape = (batch_size, seq_length, n_embd)
-        x = x.transpose(1, 2) # x.shape = (batch_size, n_embd, seq_length)
         x = self.fd1(x)
         x = F.gelu(x)
         x = self.fd2(x)
         x = self.dropout(x)
-        return x.transpose(1, 2)
+        return x
 
 
 class RMSNorm(torch.nn.Module):

@@ -18,6 +18,8 @@ torch-xla = "*"
 importlib-resources = "*"
 python-dotenv = "*"
 tokenizers = "*"
+zipp = "*"
+chardet = "*"
 
 [dev-packages]
 autoflake = "*"

@@ -13,7 +13,7 @@ def main():
 
     os.environ['TOKENIZERS_PARALLELISM'] = "false"
     with torch.no_grad():
-        cpu_device = torch.device("cuda")
+        cpu_device = torch.device("mps")
         runner = TransientRunner(
             block_size=Config.BLOCK_SIZE,
             n_embd=Config.N_EMBD,
@@ -40,7 +40,7 @@ def main():
                 context.to(cpu_device),
                 max_new_tokens=int(sys.argv[1]),
                 display=True,
-                temperature=0.8,
+                temperature=0.7,
                 greedy=False,
             )
 

@@ -5,14 +5,13 @@ Note:
     This script needs to be run from the root directory of the project.
 """
 
+import glob
 
-from tokenizers import Tokenizer, pre_tokenizers, ByteLevelBPETokenizer
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
+from tokenizers import Tokenizer, ByteLevelBPETokenizer
 
 
 tokenizer = ByteLevelBPETokenizer()
-tokenizer.train(vocab_size=50432, files=["data/wiki.txt", "data/wiki1.txt"], min_frequency=2)
+tokenizer.train(vocab_size=2048, files=glob.glob("data/*"), min_frequency=1)
 
 print("[*] Saving the tokenizer...")
 tokenizer.save("bpe_model.json")
