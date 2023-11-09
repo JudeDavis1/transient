@@ -81,7 +81,7 @@ class BookCorpusDataset(Dataset):
             return
 
         self.limit = float("inf")
-        self.train_data = np.array(self.encode(self.file_contents, self.limit))
+        self.train_data = np.array(self.encode(self.file_contents))
 
         np.save(self.train_data_file, self.train_data)
         logger.info("All elements exist:", all(self.train_data))
