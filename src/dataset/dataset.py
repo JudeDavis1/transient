@@ -11,9 +11,8 @@ import asyncio
 import os
 import warnings
 from tokenizers import Tokenizer
-from typing import Optional, Union
-
-import nltk
+from typing import Union
+ 
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -30,80 +29,58 @@ class BookCorpusDataset(Dataset):
         the model.
         - Supports multiprocessing.
     Args:
-        chunk_size:
-            - The amount of words in a batch.
-            - This is set to None, when just_corpus=True.
-        just_corpus:
-            - Whether the dataset should only prepare the corpus (when not training).
-            - You can't run generate_batches() if this is set to True.
-        save_corpus:
-            - Whether to save the corpus in a file or not.
-        cache_train_data:
-            - Whether or not to save the training data instead of processing it every time
-            at runtime.
+        folder:
+            - The folder to load text files from.
         train_data_file:
-            - The filename to load the training data from.
-        corpus_from_file:
-            - The filename to load the corpus from.
+            - The filename to load the training data cache from.
     """
 
     def __init__(
         self,
-        folder="data",
-        train_data_file: Optional[str] = None,
-        just_corpus=False,
+        folder: str="data",
+        train_data_file: str = "train_data.gz.npy",
     ):
-        nltk.download("punkt", quiet=True)
-
+        self.folder = folder
         self.loop = asyncio.get_event_loop()
-        self.train_data_file = (
-            train_data_file if train_data_file else "train_data.gz.npy"
-        )
-        # self.tokenizer = nltk.tokenize.RegexpTokenizer(r"\w+|\s+|[^\w\s]+")
-        self.tokenizer = Tokenizer.from_file("bpe_model.json")
-        self.file_contents = self._run_load_corpus(folder=folder, just_contents=True)
-        self.corpus = self.tokenizer.get_vocab().keys()
+        self.train_data_file = train_data_file
+        self.tokenizer: Tokenizer = Tokenizer.from_file("bpe_model.json")
+        self.corpus: list[str] = self.tokenizer.get_vocab().keys()
         self.vocab_size = self.tokenizer.get_vocab_size()
 
-        # sets of features and labels
-        self.x_data = []
-        self.y_data = []
-
-        if just_corpus:
-            return
-
         # the list of data in (train_x, train_y) format
-        self.prep_data = []
+        self.train_data = []
+        self.batch_data = []
+    
+    def load_dataset(self):
         if os.path.exists(self.train_data_file):
             logger.info(f"Loading training data: {self.train_data_file}")
             self.train_data: np.ndarray = np.load(self.train_data_file, allow_pickle=True)
             logger.info(self.train_data.shape)
             return
 
-        self.limit = float("inf")
+        self.file_contents = self._run_load_corpus(folder=self.folder, just_contents=True)
         self.train_data = np.array(self.encode(self.file_contents))
 
         np.save(self.train_data_file, self.train_data)
+        
         logger.info("All elements exist:", all(self.train_data))
         logger.info(len(self.train_data))
 
     def generate_batches(self, chunk_size):
+        if not len(self.train_data):
+            raise ValueError("please call load_dataset() before generating batches.")
+
         self.chunk_size = chunk_size
 
         for i in range(0, len(self.train_data) - self.chunk_size, self.chunk_size):
             sample = self.get_batch(i)
 
+            # drop any remaining data that doesn't fit chunk_size
             if len(sample[0]) != self.chunk_size or len(sample[1]) != self.chunk_size:
                 break
 
-            # add features
-            self.x_data.append(sample[0])
-
-            # add labels
-            self.y_data.append(sample[1])
-
             # add pairs
-            self.prep_data.append(sample)
+            self.batch_data.append(sample)
 
     def get_batch(self, idx):
         starting_phrase = self.train_data[idx:idx + self.chunk_size]
@@ -128,10 +105,10 @@ class BookCorpusDataset(Dataset):
         )
 
     def __getitem__(self, index):
-        return self.prep_data[index]
+        return self.batch_data[index]
 
     def __len__(self):
-        return len(self.prep_data)
+        return len(self.batch_data)
 
 
 async def load_corpus(text_file_dir, **kwargs) -> Union[list, str]:

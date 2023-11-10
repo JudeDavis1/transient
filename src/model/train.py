@@ -13,41 +13,43 @@ from src import logger
 from src.config import Config
 from src.model.transformer import *
 
+
+dataset.load_dataset()
 dataset.generate_batches(Config.BLOCK_SIZE)
 
 # train and test splits
-data = dataset.prep_data
-n = int(0.98 * len(data))
-val_interval = 8
-optimizer_checkpoint_name = "optimizer_cache"
-min_lr = 0.00004
-grad_max_norm = 1.0
-max_warmup_steps = 50
-should_warmup = True
+DATA = dataset.batch_data
+N = int(0.98 * len(DATA))
+VALIDATION_INTERVAL = 8
+OPTIMIZER_CHECKPOINT_NAME = "optimizer_cache"
+MIN_LR = 0.00004
+GRAD_MAX_NORM = 1.0
+MAX_WARMUP_STEPS = 50
+SHOULD_WARMUP = True
 
 val_loss_history = []
 training_loss_history = []
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 if mps.is_built():
-    device = torch.device("mps")
+    DEVICE = "mps"
 
 
 def main():
-    global device, min_lr, should_warmup
+    global DEVICE, MIN_LR, SHOULD_WARMUP
     args: HyperparamArgs = parse_arguments()
     logger.special(args)
 
     if args.dropout:
-        min_lr = 0.00002
+        MIN_LR = 0.00002
 
     if args.device.startswith("xla"):
-        import torch_xla.core.xla_model as xm
-        device = xm.xla_device()
+        import torch_xla as xm
+        DEVICE = xm.core.xla_model.xla_device()
     
-    random.shuffle(data)
-    train_data = DataLoader(data[:n], batch_size=args.batch_size, shuffle=True, num_workers=0)
-    val_data = DataLoader(data[n:], batch_size=args.batch_size, shuffle=True)
+    random.shuffle(DATA)
+    train_data = DataLoader(DATA[:N], batch_size=args.batch_size, shuffle=True, num_workers=0)
+    val_data = DataLoader(DATA[N:], batch_size=args.batch_size, shuffle=True)
 
     # model with hyperparams
     runner = TransientRunner(
@@ -57,16 +59,14 @@ def main():
         n_heads=Config.N_HEADS,
         dropout=args.dropout,
     )
-    runner.to_device(device)
-
-    # try:
-    #     runner.compile_model()
-    # except RuntimeError as e:
-    #     print(e)
+    runner.to_device(DEVICE)
+    
+    if args.compile:
+        runner.compile_model()
 
     pretrained_model_exists = os.path.exists(args.from_pretrained)
     if pretrained_model_exists:
-        runner.load(args.from_pretrained, map_location=device)
+        runner.load(args.from_pretrained, map_location=DEVICE)
 
     runner.use_parallel_if_available()
     runner.model.train()
@@ -78,14 +78,14 @@ def main():
     optimizer = torch.optim.AdamW(
         runner.model.parameters(), lr=args.lr, betas=(0.9, 0.98), weight_decay=0.1
     )
-    if os.path.exists(optimizer_checkpoint_name) and pretrained_model_exists:
-        should_warmup = False
-        optimizer.load_state_dict(torch.load(optimizer_checkpoint_name))
+    if os.path.exists(OPTIMIZER_CHECKPOINT_NAME) and pretrained_model_exists:
+        SHOULD_WARMUP = False
+        optimizer.load_state_dict(torch.load(OPTIMIZER_CHECKPOINT_NAME))
     
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.999, step_size=20)
     scaler = (
         GradScaler()
-        if args.use_mixed_precision and device == "cuda"
+        if args.use_mixed_precision and DEVICE == "cuda"
         else FakeGradScaler()
     )
 
@@ -106,20 +106,20 @@ def main():
 
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
-            if scheduler.get_lr()[-1] < min_lr:
-                set_lr(optimizer, min_lr)
+            if scheduler.get_lr()[-1] < MIN_LR:
+                set_lr(optimizer, MIN_LR)
 
             cur_step = (iter * len(train_data)) + j
-            if should_warmup and cur_step <= max_warmup_steps:
-                new_lr = (args.lr / max_warmup_steps) * cur_step
+            if SHOULD_WARMUP and cur_step <= MAX_WARMUP_STEPS:
+                new_lr = (args.lr / MAX_WARMUP_STEPS) * cur_step
                 set_lr(optimizer, new_lr)
 
-            xb = xb.to(device)
-            yb = yb.to(device)
+            xb = xb.to(DEVICE)
+            yb = yb.to(DEVICE)
 
             # with mixed precision
-            with autocast(enabled=args.use_mixed_precision and device == "cuda"):
-                if (cur_step + 1) % val_interval == 0:
+            with autocast(enabled=args.use_mixed_precision and DEVICE == "cuda"):
+                if (cur_step + 1) % VALIDATION_INTERVAL == 0:
                     val_loss = get_val_loss(runner.model, val_data, eval_iters=4)
 
                 # evaluate the loss
@@ -127,7 +127,7 @@ def main():
                 loss: torch.Tensor = loss / args.gradient_acc
 
             scaler.scale(loss.mean()).backward()
-            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=grad_max_norm)
+            nn.utils.clip_grad.clip_grad_norm_(runner.model.parameters(), max_norm=GRAD_MAX_NORM)
 
             total_loss += loss.mean().item()
             scheduler.step()
@@ -151,7 +151,7 @@ def main():
 
 
     runner.save(args.save_to)
-    torch.save(optimizer.state_dict(), optimizer_checkpoint_name)
+    torch.save(optimizer.state_dict(), OPTIMIZER_CHECKPOINT_NAME)
     show_loss(n_steps)
 
 
@@ -178,7 +178,7 @@ def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     for _ in range(eval_iters):
         X, Y = get_batch(dataloader)
 
-        _, loss = model(X.to(device), Y.to(device), device)
+        _, loss = model(X.to(DEVICE), Y.to(DEVICE), DEVICE)
         val_loss += loss.mean().item()
 
     # get the mean
@@ -193,7 +193,7 @@ def get_batch(dataloader: DataLoader):
 
     x, y = next(iter(dataloader))
 
-    return (x.to(device), y.to(device))
+    return (x.to(DEVICE), y.to(DEVICE))
 
 
 class FakeGradScaler:
@@ -223,6 +223,7 @@ class HyperparamArgs:
         self.from_pretrained: str = namespace.from_pretrained
         self.device: str = namespace.device
         self.save_to: str = namespace.save_to
+        self.compile: bool = namespace.compile
 
     def __repr__(self):
         return f"""Hyperparams:
@@ -275,8 +276,7 @@ def parse_arguments() -> HyperparamArgs:
     parser.add_argument(
         "-mp",
         "--use-mixed-precision",
-        default=1,
-        type=int,
+        action="store_true",
         help="Use automatic precision to speed up training (only on CUDA-enabled GPUs)",
     )
     parser.add_argument(
@@ -311,6 +311,11 @@ def parse_arguments() -> HyperparamArgs:
         default="model_cache",
         type=str,
         help="File to save to",
+    )
+    parser.add_argument(
+        "--compile",
+        action="store_true",
+        help="Compile the model with torch dynamo",
     )
 
     return HyperparamArgs(parser.parse_args())

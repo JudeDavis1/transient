@@ -2,4 +2,6 @@
 # pipenv --python $(which python3)
 # pipenv install
 
-pipenv run train -ga 1 -mp 1 -e 1 --device mps -b 42 --lr 0.0005 -d 0.1
+device=$1
+
+pipenv run train -ga 1 -mp -e 1 --device $device -b 16 --lr 0.0005 -d 0 --from-pretrained model_cache

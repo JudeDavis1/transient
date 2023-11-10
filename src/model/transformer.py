@@ -6,6 +6,7 @@ All relevant modules for the transformer architecture.
 
 import os
 import sys
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -42,7 +43,7 @@ class TransientRunner:
         self.dropout = dropout
 
         # default to CPU
-        self.device = torch.device("cpu")
+        self.device = "cpu"
         self.cache_dir = "./model_cache"
         self.transformer_model_name = f"./models/BT-{n_heads}Head-{n_layers}Layer.pt"
 
@@ -50,6 +51,7 @@ class TransientRunner:
             block_size=self.block_size,
             n_embd=self.n_embd,
             n_layers=self.n_layers,
+            vocab_size=dataset.vocab_size,
             n_heads=self.n_heads,
             dropout=self.dropout,
         )
@@ -69,7 +71,7 @@ class TransientRunner:
 
     def compile_model(self):
         """Compile the model for training"""
-        self.model = torch.compile(self.model)
+        self.model = torch.jit.script(self.model)
 
     def generate(
         self,
@@ -122,7 +124,7 @@ class TransientRunner:
 
         # generate a set of samples
         dataset.generate_batches(block_size)
-        loader = DataLoader(dataset.prep_data[:n_samples], batch_size=1)
+        loader = DataLoader(dataset.batch_data[:n_samples], batch_size=1)
 
         correct = 0
 
@@ -143,7 +145,7 @@ class TransientRunner:
     def is_parallel(self):
         return isinstance(self.model, nn.DataParallel)
 
-    def to_device(self, device: torch.device):
+    def to_device(self, device: str):
         self.device = device
         self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
@@ -186,6 +188,7 @@ class TransformerModel(nn.Module):
         block_size=128,
         n_embd=384,
         n_layers=8,
+        vocab_size=1000,
         n_heads=8,
         dropout=0.2,
     ):
@@ -199,7 +202,7 @@ class TransformerModel(nn.Module):
         self.dropout = dropout
 
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_table = nn.Embedding(dataset.vocab_size, n_embd)
+        self.token_table = nn.Embedding(vocab_size, n_embd)
         self.position_table = nn.Embedding(block_size, n_embd)
         self.blocks = nn.Sequential(
             *[
@@ -215,28 +218,28 @@ class TransformerModel(nn.Module):
 
         # final layer norm
         self.ln_f = RMSNorm(n_embd)
-        self.dec_dropout = nn.Dropout(self.dropout)
-        self.lm_head = nn.Linear(n_embd, dataset.vocab_size, bias=False)
+        self.dec_dropout = nn.Dropout(dropout)
+        self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
 
-    def forward(self, idx, targets=None, device=None):
+    def forward(self, idx, targets: Optional[torch.Tensor]=None, device: str="cuda"):
         B, T = idx.shape
 
         # idx and targets are both (B, T) tensor of integers
         token_embed = self.token_table(idx)  # (B, T, C)
-        pos_embed = self.position_table(torch.arange(T, device=device))  # (T, C)
+        pos_embed = self.position_table(torch.arange(T, device=torch.device(device)))  # (T, C)
         x = self.dec_dropout(token_embed + pos_embed)  # (B, T, C)
         x = self.blocks(x)  # (B, T, C)
         x = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
 
-        if targets is None:
-            loss = None
-        else:
+        if torch.jit.isinstance(targets, torch.Tensor):
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             targets = targets.view(B * T)
 
             loss = F.cross_entropy(logits, targets)
+        else:
+            loss = None
 
         return logits, loss
 
@@ -300,7 +303,7 @@ class MultiHeadAttention(nn.Module):
         if self.flash:
             dropout_p = self.dropout_p
             if not self.training:
-                dropout_p = 0
+                dropout_p = 0.
             
             out = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=True)
         else:

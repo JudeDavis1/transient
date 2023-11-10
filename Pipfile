@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 tqdm = "*"
 matplotlib = "*"
-torch = "*"
 numpy = "*"
 colorama = "*"
 bs4 = "*"
@@ -20,6 +19,7 @@ python-dotenv = "*"
 tokenizers = "*"
 zipp = "*"
 chardet = "*"
+torch = {file = "https://download.pytorch.org/whl/nightly/cpu/torch-2.2.0.dev20230912-cp310-none-macosx_11_0_arm64.whl"}
 
 [dev-packages]
 autoflake = "*"

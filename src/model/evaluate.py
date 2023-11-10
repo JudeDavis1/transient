@@ -1,32 +1,30 @@
 import sys
-import os
 
 from src import logger
 from src.config import Config
 from src.model.transformer import *
 
 
-def main():
-    mode = None
-    if len(sys.argv) > 2:
-        mode = sys.argv[2]
+WARMUP = True
 
-    os.environ['TOKENIZERS_PARALLELISM'] = "false"
+def main():
     with torch.no_grad():
-        cpu_device = torch.device("mps")
+        device = "mps"
         runner = TransientRunner(
             block_size=Config.BLOCK_SIZE,
             n_embd=Config.N_EMBD,
             n_layers=Config.N_LAYERS,
             n_heads=Config.N_HEADS,
         )
-        runner.to_device(cpu_device)
+        runner.to_device(device)
 
         fname = sys.argv[2]
         logger.INFO("Loading", fname)
         
-        runner.load(fname, map_location=cpu_device)
+        runner.load(fname, map_location=device)
         runner.model.eval()
+
+        runner.compile_model()
 
         # accuracy = runner.score_accuracy(dataset, n_samples=100)
         # logger.info(f"Accuracy: {accuracy}")
@@ -37,10 +35,10 @@ def main():
 
             logger.info(context_str, end='')
             runner.generate(
-                context.to(cpu_device),
+                context.to(device),
                 max_new_tokens=int(sys.argv[1]),
                 display=True,
-                temperature=0.7,
+                temperature=0.2,
                 greedy=False,
             )
 
