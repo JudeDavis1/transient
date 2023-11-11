@@ -1,4 +1,5 @@
 import sys
+import torch
 
 from src import logger
 from src.config import Config
@@ -6,6 +7,8 @@ from src.model.transformer import *
 
 
 WARMUP = True
+ 
+# torch._C._jit_set_profiling_mode(False)
 
 def main():
     with torch.no_grad():
@@ -29,18 +32,24 @@ def main():
         # accuracy = runner.score_accuracy(dataset, n_samples=100)
         # logger.info(f"Accuracy: {accuracy}")
 
-        while True:
-            context_str = input("> ")
-            context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
+        # t = torch.tensor([dataset.encode(dataset.tokenize("fdahkjsdgjfhdsggfjhdsgfgjhsgdfdjhsdgfjhdsgfgjshdgffgkajsdhfgfkajsdhgffkajsdhgffkajsdhfgfgcontext_str"))])
+        # for _ in range(5):
+        #     runner.generate(t.to(device), max_new_tokens=5)
+        # print("test done")
+        
+        with torch.jit.optimized_execution(True):
+            while True:
+                context_str = input("> ")
+                context = torch.tensor([dataset.encode(dataset.tokenize(context_str))])
 
-            logger.info(context_str, end='')
-            runner.generate(
-                context.to(device),
-                max_new_tokens=int(sys.argv[1]),
-                display=True,
-                temperature=0.2,
-                greedy=False,
-            )
+                logger.info(context_str, end='')
+                runner.generate(
+                    context.to(device),
+                    max_new_tokens=int(sys.argv[1]),
+                    display=True,
+                    temperature=0.5,
+                    greedy=False,
+                )
 
 
 if __name__ == "__main__":

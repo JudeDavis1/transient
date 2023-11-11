@@ -20,11 +20,12 @@ dataset.generate_batches(Config.BLOCK_SIZE)
 # train and test splits
 DATA = dataset.batch_data
 N = int(0.98 * len(DATA))
-VALIDATION_INTERVAL = 8
+VALIDATION_INTERVAL = 3
 OPTIMIZER_CHECKPOINT_NAME = "optimizer_cache"
 MIN_LR = 0.00004
 GRAD_MAX_NORM = 1.0
 MAX_WARMUP_STEPS = 50
+CHECKPOINT_INTERVAL = 15
 SHOULD_WARMUP = True
 
 val_loss_history = []
@@ -103,7 +104,8 @@ def main():
         t = tqdm_notebook(range(args.epochs))
     else:
         t = tqdm(range(args.epochs))
-
+    
+    completed_updates = 0
     for iter in t:
         for j, (xb, yb) in enumerate(train_data):
             if scheduler.get_lr()[-1] < MIN_LR:
@@ -119,8 +121,8 @@ def main():
 
             # with mixed precision
             with autocast(enabled=args.use_mixed_precision and DEVICE == "cuda"):
-                if (cur_step + 1) % VALIDATION_INTERVAL == 0:
-                    val_loss = get_val_loss(runner.model, val_data, eval_iters=4)
+                if completed_updates % VALIDATION_INTERVAL == 0:
+                    val_loss = get_val_loss(runner.model, val_data, eval_iters=2)
 
                 # evaluate the loss
                 _, loss = runner.forward(xb, yb)
@@ -148,9 +150,12 @@ def main():
                     f"Epoch {iter} - Batch: {update_num}/{n_steps_per_batch} - Train loss: {total_loss:.6f}  Validation loss: {val_loss_str}  LR: {lr_str:.7f}"
                 )
                 total_loss = 0
+                completed_updates += 1
+            
+                if completed_updates % CHECKPOINT_INTERVAL == 0:
+                    runner.save(args.save_to, verbose=True)
 
-
-    runner.save(args.save_to)
+    runner.save(args.save_to, verbose=True)
     torch.save(optimizer.state_dict(), OPTIMIZER_CHECKPOINT_NAME)
     show_loss(n_steps)
 

@@ -157,8 +157,9 @@ class TransientRunner:
             # load the uncompressed copy
             self.model.load_state_dict(torch.load(load_cache, **kwargs))
 
-    def save(self, name="model_cache", save_cache=False):
-        logger.info("[*] Saving model:", self.transformer_model_name)
+    def save(self, name="model_cache", verbose=False):
+        if verbose:
+            logger.info("[*] Saving model:", self.transformer_model_name)
 
         if self.is_parallel():
             self.model = self.model.module
