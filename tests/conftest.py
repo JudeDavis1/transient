@@ -1,24 +1,24 @@
 import pytest
 
-from src.config import Config
+from src.config import config
 from src.dataset.dataset import BookCorpusDataset
 from src.model.transformer import TransientRunner
 
 
 @pytest.fixture(scope="session")
-def small_config() -> Config:
+def small_config() -> config:
     """Generate a config for a small model"""
 
-    config = Config()
+    config = config()
     config.BLOCK_SIZE = 64
     return config
 
 
 @pytest.fixture(scope="session")
-def default_config() -> Config:
+def default_config() -> config:
     """Generate a config with the default values"""
 
-    return Config()
+    return config()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -33,7 +33,7 @@ def dataset() -> BookCorpusDataset:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def dataset_with_batches(dataset, small_config: Config) -> BookCorpusDataset:
+def dataset_with_batches(dataset, small_config: config) -> BookCorpusDataset:
     """Generate a dataset with batches"""
 
     dataset.generate_batches(small_config.BLOCK_SIZE)

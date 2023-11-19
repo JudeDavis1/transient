@@ -7,8 +7,7 @@ Note:
 
 import glob
 
-from tokenizers import Tokenizer, ByteLevelBPETokenizer
-
+from tokenizers import ByteLevelBPETokenizer, Tokenizer
 
 tokenizer = ByteLevelBPETokenizer()
 tokenizer.train(vocab_size=4096, files=glob.glob("data/*"), min_frequency=2)

@@ -1,13 +1,12 @@
 import io
-import sys
-import bs4
 import string
-import requests
-
-from tqdm import tqdm
+import sys
 from collections import deque
 from typing import List, Union
 
+import bs4
+import requests
+from tqdm import tqdm
 
 from src import logger
 

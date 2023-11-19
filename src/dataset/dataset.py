@@ -10,10 +10,10 @@ with the book dataset. Also supports multithreading.
 import asyncio
 import os
 import warnings
-from tokenizers import Tokenizer
 from typing import Union
- 
+
 import numpy as np
+from tokenizers import Tokenizer
 from torch.utils.data import Dataset
 
 warnings.filterwarnings("ignore")
@@ -37,7 +37,7 @@ class BookCorpusDataset(Dataset):
 
     def __init__(
         self,
-        folder: str="data",
+        folder: str = "data",
         train_data_file: str = "train_data.gz.npy",
     ):
         self.folder = folder
@@ -50,19 +50,23 @@ class BookCorpusDataset(Dataset):
         # the list of data in (train_x, train_y) format
         self.train_data = []
         self.batch_data = []
-    
+
     def load_dataset(self):
         if os.path.exists(self.train_data_file):
             logger.info(f"Loading training data: {self.train_data_file}")
-            self.train_data: np.ndarray = np.load(self.train_data_file, allow_pickle=True)
+            self.train_data: np.ndarray = np.load(
+                self.train_data_file, allow_pickle=True
+            )
             logger.info(self.train_data.shape)
             return
 
-        self.file_contents = self._run_load_corpus(folder=self.folder, just_contents=True)
+        self.file_contents = self._run_load_corpus(
+            folder=self.folder, just_contents=True
+        )
         self.train_data = np.array(self.encode(self.file_contents))
 
         np.save(self.train_data_file, self.train_data)
-        
+
         logger.info("All elements exist:", all(self.train_data))
         logger.info(len(self.train_data))
 
@@ -83,7 +87,7 @@ class BookCorpusDataset(Dataset):
             self.batch_data.append(sample)
 
     def get_batch(self, idx):
-        starting_phrase = self.train_data[idx:idx + self.chunk_size]
+        starting_phrase = self.train_data[idx : idx + self.chunk_size]
         target_word = self.train_data[idx + 1 : idx + 1 + self.chunk_size]
 
         return (starting_phrase, target_word)

@@ -32,4 +32,6 @@ def critical(text, *args, engine=print, **kwargs):
 
 
 def CRITICAL(text, *args, engine=print, **kwargs):
-    engine(Fore.RED + "[TRANSIENT] CRITICAL: " + str(text) + Fore.RESET, *args, **kwargs)
+    engine(
+        Fore.RED + "[TRANSIENT] CRITICAL: " + str(text) + Fore.RESET, *args, **kwargs
+    )
