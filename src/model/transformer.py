@@ -245,7 +245,7 @@ class Block(nn.Module):
         self.sa_block = MultiHeadAttention(
             n_embd, head_size, n_heads, block_size, dropout, batch_size=batch_size
         )
-        self.ffwd = FeedForward(n_embd, dropout)
+        self.ffwd = FeedForward(dim=n_embd, multiple_of=256, hidden_dim=n_embd * 4)
         self.ln1 = RMSNorm(n_embd)
         self.ln2 = RMSNorm(n_embd)
         self.block_dropout = nn.Dropout(dropout)
@@ -351,21 +351,41 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, n_embd, dropout):
+    def __init__(
+        self,
+        dim: int,
+        hidden_dim: int,
+        multiple_of: int,
+        ffn_dim_multiplier: Optional[float] = None,
+    ):
+        """
+        Initialize the FeedForward module.
+
+        Args:
+            dim (int): Input dimension.
+            hidden_dim (int): Hidden dimension of the feedforward layer.
+            multiple_of (int): Value to ensure hidden dimension is a multiple of this value.
+            ffn_dim_multiplier (float, optional): Custom multiplier for hidden dimension. Defaults to None.
+        """
         super().__init__()
+        hidden_dim = int(2 * hidden_dim / 3)
+        # custom dim factor multiplier
+        if ffn_dim_multiplier is not None:
+            hidden_dim = int(ffn_dim_multiplier * hidden_dim)
+        hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
 
-        hidden_dim = 4 * n_embd
+        self.w1 = nn.Linear(
+            dim, hidden_dim, bias=False,
+        )
+        self.w2 = nn.Linear(
+            hidden_dim, dim, bias=False,
+        )
+        self.w3 = nn.Linear(
+            dim, hidden_dim, bias=False,
+        )
 
-        self.fd1 = nn.Linear(n_embd, hidden_dim, bias=False)
-        self.fd2 = nn.Linear(n_embd, hidden_dim, bias=False)
-        self.fd3 = nn.Linear(hidden_dim, n_embd, bias=False)
-        self.ln = RMSNorm(n_embd)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x) -> torch.Tensor:
-        out = F.silu(self.fd1(x))
-        out = out * self.fd2(x)
-        return self.fd3(out)
+    def forward(self, x):
+        return self.w2(F.silu(self.w1(x)) * self.w3(x))
 
 
 class RMSNorm(torch.nn.Module):
