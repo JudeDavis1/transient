@@ -86,11 +86,16 @@ class TransientRunner:
     ):
         """Generate new tokens from the model iteratively"""
 
-        # idx is (B, T) array of indices in the current context
-        for i in range(max_new_tokens):
-            # crop idx to the last block_size tokens
-            idx_cond = idx[:, -self.block_size :]
-            logits, _ = self.model(idx_cond, start_pos=i, device=self.device)
+        start_pos = idx.size(1)
+        for _ in range(max_new_tokens):
+            # Slice idx to get the current window (idx_cond)
+            if idx.size(1) < self.block_size:
+                idx_cond = idx
+            else:
+                idx_cond = idx[:, -self.block_size:]
+
+
+            logits, _ = self.model(idx_cond, start_pos=start_pos, device=self.device)
 
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
@@ -98,15 +103,17 @@ class TransientRunner:
 
             # sample from the distribution
             if greedy:
-                idx_next = torch.argmax(probs).unsqueeze(-1).unsqueeze(-1).long()
+                idx_next = torch.argmax(probs, dim=-1, keepdim=True)
             else:
                 idx_next = torch.multinomial(probs, num_samples=1).long()
 
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
+
+            start_pos += 1
+
             if display:
                 scalar_idx = idx_next.flatten().cpu().numpy()
-
                 sys.stdout.write(dataset.decode(scalar_idx))
                 sys.stdout.flush()
 
@@ -215,9 +222,26 @@ class TransformerModel(nn.Module):
         self.freqs_cis = self.freqs_cis.to(device)
         freqs_cis = self.freqs_cis[start_pos : start_pos + T]
 
+        mask = None
+        if T > 1:
+            mask = torch.full(
+                (T, T), float("-inf"), device=device
+            )
+
+            mask = torch.triu(mask, diagonal=1)
+
+            # When performing key-value caching, we compute the attention scores
+            # only for the new sequence. Thus, the matrix of scores is of size
+            # (T, cache_len + T), and the only masked entries are (i, j) for
+            # j > cache_len + i, since row i corresponds to token cache_len + i.
+            mask = torch.hstack([
+                torch.zeros((T, start_pos), device=device),
+                mask
+            ]).type_as(token_embed)
+
         x: torch.Tensor = token_embed
         for block in self.blocks:
-            x = block(x, freqs_cis=freqs_cis, start_pos=start_pos)
+            x = block(x, freqs_cis=freqs_cis, start_pos=start_pos, mask=mask)
 
         x: torch.Tensor = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits: torch.Tensor = self.lm_head(x)  # (B, T, dataset.vocab_size)
@@ -250,10 +274,10 @@ class Block(nn.Module):
         self.ln2 = RMSNorm(n_embd)
         self.block_dropout = nn.Dropout(dropout)
 
-    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int) -> torch.Tensor:
+    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor) -> torch.Tensor:
         """Add residual connections around each block"""
         x = x + self.block_dropout(
-            self.sa_block(self.ln1(x), freqs_cis=freqs_cis, start_pos=start_pos)
+            self.sa_block(self.ln1(x), freqs_cis=freqs_cis, start_pos=start_pos, mask=mask)
         )
         x = x + self.block_dropout(self.ffwd(self.ln2(x)))
 
@@ -269,12 +293,10 @@ class MultiHeadAttention(nn.Module):
         self.n_heads = n_heads
         self.head_size = head_size
         self.dropout_p = dropout
-        self.flash = True
         self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
         self.c_attn = nn.Linear(n_embd, 3 * n_embd, bias=False)
-        self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
         self.proj = nn.Linear(n_embd, n_embd, bias=False)
 
@@ -296,7 +318,7 @@ class MultiHeadAttention(nn.Module):
             )
         )
 
-    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int) -> torch.Tensor:
+    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor) -> torch.Tensor:
         B, T, C = x.shape
 
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
@@ -313,35 +335,23 @@ class MultiHeadAttention(nn.Module):
         self.cache_k[:B, start_pos : start_pos + T] = k.detach()
         self.cache_v[:B, start_pos : start_pos + T] = v.detach()
 
-        keys = self.cache_k[:B, : start_pos + T]
-        values = self.cache_v[:B, : start_pos + T]
+        k = self.cache_k[:B, : start_pos + T]
+        v = self.cache_v[:B, : start_pos + T]
 
-        keys = repeat_kv(keys, 1)
-        values = repeat_kv(values, 1)
-
-        k = keys
-        v = values
+        k = repeat_kv(k, 1)
+        v = repeat_kv(v, 1)
 
         q = q.transpose(1, 2)  # (B, nh, T, hs)
         k = k.transpose(1, 2)  # (B, nh, T, hs)
         v = v.transpose(1, 2)  # (B, nh, T, hs)
 
-        if self.flash:
-            dropout_p = self.dropout_p
-            if not self.training:
-                dropout_p = 0.0
+        dropout_p = self.dropout_p
+        if not self.training:
+            dropout_p = 0.0
 
-            out = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, dropout_p=dropout_p, is_causal=True
-            )
-        else:
-            # compute attention scores
-            scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_size**0.5)
-            scores = scores.masked_fill(self.tril[:T, :T] == 0, float("-inf"))
-            attn = F.softmax(scores, dim=-1)
-
-            # compute values and attention output
-            out = torch.matmul(attn, v).view(B, T, self.n_embd)
+        out = F.scaled_dot_product_attention(
+            q, k, v, dropout_p=dropout_p, attn_mask=mask
+        )
 
         # join heads concatenating along the last dimension
         out = out.transpose(1, 2).contiguous().view(B, T, C)

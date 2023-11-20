@@ -97,7 +97,7 @@ class BookCorpusDataset(Dataset):
 
     def encode(self, s):
         if isinstance(s, list):
-            return [t.ids for t in self.tokenizer.encode_batch(s)][0]
+            return [t.ids[0] for t in self.tokenizer.encode_batch(s)]
         return self.tokenizer.encode(s).ids
 
     def decode(self, l):
