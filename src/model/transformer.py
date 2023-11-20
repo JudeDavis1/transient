@@ -56,7 +56,8 @@ class TransientRunner:
             vocab_size=dataset.vocab_size,
             n_heads=self.n_heads,
             dropout=self.dropout,
-            batch_size=batch_size
+            batch_size=batch_size,
+            use_complex=self.device != "mps"
         ).apply(self._init_weights)
 
     def forward(
@@ -165,6 +166,7 @@ class TransformerModel(nn.Module):
         n_heads=8,
         dropout=0.2,
         batch_size=1,
+        use_complex=False,
     ):
         super().__init__()
 
@@ -196,7 +198,7 @@ class TransformerModel(nn.Module):
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
 
         self.freqs_cis = precompute_freqs_cis(
-            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2, use_complex=False
+            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2, use_complex=True
         )
 
     def forward(
@@ -217,8 +219,8 @@ class TransformerModel(nn.Module):
         for block in self.blocks:
             x = block(x, freqs_cis=freqs_cis, start_pos=start_pos)
 
-        x = self.dec_dropout(self.ln_f(x))  # (B, T, C)
-        logits = self.lm_head(x)  # (B, T, dataset.vocab_size)
+        x: torch.Tensor = self.dec_dropout(self.ln_f(x))  # (B, T, C)
+        logits: torch.Tensor = self.lm_head(x)  # (B, T, dataset.vocab_size)
 
         if torch.jit.isinstance(targets, torch.Tensor):
             B, T, C = logits.shape
@@ -271,10 +273,10 @@ class MultiHeadAttention(nn.Module):
         self.n_embd = n_embd
 
         self.dropout = nn.Dropout(dropout)
-        self.c_attn = nn.Linear(n_embd, 3 * n_embd)
+        self.c_attn = nn.Linear(n_embd, 3 * n_embd, bias=False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
-        self.proj = nn.Linear(n_embd, n_embd)
+        self.proj = nn.Linear(n_embd, n_embd, bias=False)
 
         head_dim = n_embd // n_heads
         self.cache_k = torch.zeros(
