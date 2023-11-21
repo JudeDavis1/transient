@@ -161,6 +161,8 @@ def main():
                 completed_updates += 1
 
                 if completed_updates % CHECKPOINT_INTERVAL == 0:
+                    if DEVICE == "cuda":
+                        torch.cuda.empty_cache()
                     runner.save(args.save_to, verbose=True)
 
     runner.save(args.save_to, verbose=True)
