@@ -148,7 +148,7 @@ def main():
                 optimizer.zero_grad(set_to_none=True)
 
                 val_loss_history.append(val_loss)
-                training_loss_history.append(loss.mean().item())
+                training_loss_history.append(total_loss)
 
                 val_loss_str = round(val_loss, 6) if val_loss else "N/A"
                 lr_str = scheduler.get_lr()[-1]
@@ -192,7 +192,7 @@ def get_val_loss(model: TransformerModel, dataloader, eval_iters=50) -> float:
     for _ in range(eval_iters):
         X, Y = get_batch(dataloader)
 
-        _, loss = model(X.to(DEVICE), Y.to(DEVICE), start_pos=0, device=DEVICE)
+        _, loss = model(idx=X.to(DEVICE), targets=Y.to(DEVICE), start_pos=0, device=DEVICE)
         val_loss += loss.mean().item()
 
     # get the mean
