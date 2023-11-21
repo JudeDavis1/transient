@@ -3,7 +3,9 @@ from typing import Tuple
 import torch
 
 
-def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0, use_complex=True) -> torch.Tensor:
+def precompute_freqs_cis(
+    dim: int, end: int, theta: float = 10000.0, use_complex=True
+) -> torch.Tensor:
     """
     (From LLama)
     Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
@@ -65,7 +67,7 @@ def apply_rotary_emb(
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
     """
-    
+
     if "mps" in [xq.device.type, xk.device.type, freqs_cis.device.type]:
         return _mps_apply_rotary_emb(xq, xk, freqs_cis)
 
@@ -95,17 +97,6 @@ def reshape_for_broadcast(
         torch.Tensor: Reshaped frequency tensor.
     """
 
-    # Needed for lack of MPS complex64 support
-    # if "mps" in [freqs_cis.device.type, x.device.type]:
-    #     # Extract sine + cosine expressions
-    #     assert (
-    #         freqs_cis.shape[0] == 2
-    #     ), "Running on MPS device, so no complex64 support. `freq_cis` should contain only 2 child elements. The sine expression and cosine expression."
-    #     sin_exp, cos_exp = freqs_cis.tolist()
-    #     sin_exp, cos_exp = _mps_reshape_for_broadcast(sin_exp, cos_exp, x)
-
-    #     return torch.tensor([sin_exp, cos_exp])
-
     ndim = x.ndim
     assert 0 <= 1 < ndim
     assert freqs_cis.shape == (x.shape[1], x.shape[-1])
@@ -113,7 +104,9 @@ def reshape_for_broadcast(
     return freqs_cis.view(*shape)
 
 
-def _mps_precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
+def _mps_precompute_freqs_cis(
+    dim: int, end: int, theta: float = 10000.0
+) -> torch.Tensor:
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)
     freqs = torch.outer(t, freqs).float()

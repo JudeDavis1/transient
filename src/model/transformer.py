@@ -8,8 +8,10 @@ import os
 import sys
 from typing import Optional
 
+import lightning as pl
 import torch
 import torch.nn as nn
+from lightning.pytorch.utilities.types import STEP_OUTPUT, OptimizerLRScheduler
 from torch.nn import functional as F
 
 from src.model.rope import apply_rotary_emb, precompute_freqs_cis, repeat_kv
@@ -27,7 +29,7 @@ vocab_size = dataset.vocab_size
 logger.info("Vocab size:", vocab_size)
 
 
-class TransientRunner:
+class TransientRunner(pl.LightningModule):
     def __init__(
         self,
         block_size=config.BLOCK_SIZE,
@@ -37,6 +39,8 @@ class TransientRunner:
         dropout=0.2,
         batch_size=1,
     ):
+        super().__init__()
+
         # hyperparams
         self.block_size = block_size
         self.n_embd = n_embd
@@ -45,7 +49,7 @@ class TransientRunner:
         self.dropout = dropout
 
         # default to CPU
-        self.device = "cpu"
+        self.m_device = "cpu"
         self.cache_dir = "./model_cache"
         self.transformer_model_name = f"./models/BT-{n_heads}Head-{n_layers}Layer.pt"
 
@@ -57,13 +61,13 @@ class TransientRunner:
             n_heads=self.n_heads,
             dropout=self.dropout,
             batch_size=batch_size,
-            use_complex=self.device != "mps"
+            use_complex=self.m_device != "mps",
         ).apply(self._init_weights)
 
     def forward(
         self, x: torch.Tensor, targets: torch.Tensor = None, start_pos=0
     ) -> torch.Tensor:
-        return self.model(x, targets=targets, start_pos=start_pos, device=self.device)
+        return self.model(x, targets=targets, start_pos=start_pos, device=self.m_device)
 
     def use_parallel_if_available(self):
         """Use multiple GPUs if available"""
@@ -75,6 +79,25 @@ class TransientRunner:
     def compile_model(self):
         """Compile the model for training"""
         self.model = torch.jit.script(self.model)
+
+    def configure_optimizers(self) -> OptimizerLRScheduler:
+        return torch.optim.AdamW(
+            self.model.parameters(), lr=0.0003, betas=(0.9, 0.98), weight_decay=0.1
+        )
+
+    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+        xb, yb = batch
+        _, loss = self.forward(xb, yb)
+        self.log("train_loss", loss, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch) -> STEP_OUTPUT:
+        self.eval()
+        xb, yb = batch
+        _, loss = self.model(idx=xb, targets=yb, start_pos=0, device=self.device)
+        self.log("val_loss", loss)
+        self.train()
 
     def generate(
         self,
@@ -92,10 +115,9 @@ class TransientRunner:
             if idx.size(1) < self.block_size:
                 idx_cond = idx
             else:
-                idx_cond = idx[:, -self.block_size:]
+                idx_cond = idx[:, -self.block_size :]
 
-
-            logits, _ = self.model(idx_cond, start_pos=start_pos, device=self.device)
+            logits, _ = self.model(idx_cond, start_pos=start_pos, device=self.m_device)
 
             # focus only on the last time step
             logits = logits[:, -1, :]  # becomes (B, C)
@@ -126,7 +148,7 @@ class TransientRunner:
         return isinstance(self.model, nn.DataParallel)
 
     def to_device(self, device: str):
-        self.device = device
+        self.m_device = device
         self.model = self.model.to(device)
         logger.info(f"Using {str(device).upper()} backend...")
 
@@ -192,7 +214,6 @@ class TransformerModel(nn.Module):
                     n_embd,
                     n_heads=n_heads,
                     dropout=self.dropout,
-                    block_size=self.block_size,
                     batch_size=batch_size,
                 )
                 for _ in range(n_layers)
@@ -205,7 +226,7 @@ class TransformerModel(nn.Module):
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
 
         self.freqs_cis = precompute_freqs_cis(
-            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2, use_complex=True
+            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2, use_complex=False
         )
 
     def forward(
@@ -218,15 +239,14 @@ class TransformerModel(nn.Module):
         B, T = idx.shape
 
         # idx and targets are both (B, T) tensor of integers
-        token_embed: torch.Tensor = self.token_table(idx).to(device)  # (B, T, C)
+        token_embed: torch.Tensor = self.token_table(idx.long()).to(device)  # (B, T, C)
+        # print(self.token_table.weight.isnan().any())
         self.freqs_cis = self.freqs_cis.to(device)
         freqs_cis = self.freqs_cis[start_pos : start_pos + T]
 
         mask = None
         if T > 1:
-            mask = torch.full(
-                (T, T), float("-inf"), device=device
-            )
+            mask = torch.full((T, T), float("-inf"), device=device)
 
             mask = torch.triu(mask, diagonal=1)
 
@@ -234,10 +254,9 @@ class TransformerModel(nn.Module):
             # only for the new sequence. Thus, the matrix of scores is of size
             # (T, cache_len + T), and the only masked entries are (i, j) for
             # j > cache_len + i, since row i corresponds to token cache_len + i.
-            mask = torch.hstack([
-                torch.zeros((T, start_pos), device=device),
-                mask
-            ]).type_as(token_embed)
+            mask = torch.hstack(
+                [torch.zeros((T, start_pos), device=device), mask]
+            ).type_as(token_embed)
 
         x: torch.Tensor = token_embed
         for block in self.blocks:
@@ -261,23 +280,27 @@ class TransformerModel(nn.Module):
 class Block(nn.Module):
     """Transformer block: communication followed by computation"""
 
-    def __init__(self, n_embd, n_heads, block_size, dropout, batch_size):
+    def __init__(self, n_embd, n_heads, dropout, batch_size):
         # n_embd: embedding dimension, n_heads: the number of heads we'd like
         super().__init__()
 
         head_size = n_embd // n_heads
         self.sa_block = MultiHeadAttention(
-            n_embd, head_size, n_heads, block_size, dropout, batch_size=batch_size
+            n_embd, head_size, n_heads, dropout, batch_size=batch_size
         )
         self.ffwd = FeedForward(dim=n_embd, multiple_of=256, hidden_dim=n_embd * 4)
         self.ln1 = RMSNorm(n_embd)
         self.ln2 = RMSNorm(n_embd)
         self.block_dropout = nn.Dropout(dropout)
 
-    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor
+    ) -> torch.Tensor:
         """Add residual connections around each block"""
         x = x + self.block_dropout(
-            self.sa_block(self.ln1(x), freqs_cis=freqs_cis, start_pos=start_pos, mask=mask)
+            self.sa_block(
+                self.ln1(x), freqs_cis=freqs_cis, start_pos=start_pos, mask=mask
+            )
         )
         x = x + self.block_dropout(self.ffwd(self.ln2(x)))
 
@@ -287,7 +310,7 @@ class Block(nn.Module):
 class MultiHeadAttention(nn.Module):
     """Multiple heads of self-attention"""
 
-    def __init__(self, n_embd, head_size, n_heads, block_size, dropout, batch_size):
+    def __init__(self, n_embd, head_size, n_heads, dropout, batch_size):
         super().__init__()
 
         self.n_heads = n_heads
@@ -318,7 +341,9 @@ class MultiHeadAttention(nn.Module):
             )
         )
 
-    def forward(self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor
+    ) -> torch.Tensor:
         B, T, C = x.shape
 
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
@@ -385,13 +410,19 @@ class FeedForward(nn.Module):
         hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
 
         self.w1 = nn.Linear(
-            dim, hidden_dim, bias=False,
+            dim,
+            hidden_dim,
+            bias=False,
         )
         self.w2 = nn.Linear(
-            hidden_dim, dim, bias=False,
+            hidden_dim,
+            dim,
+            bias=False,
         )
         self.w3 = nn.Linear(
-            dim, hidden_dim, bias=False,
+            dim,
+            hidden_dim,
+            bias=False,
         )
 
     def forward(self, x):
