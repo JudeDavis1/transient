@@ -1,8 +1,8 @@
 class Config:
-    N_HEADS = 8
+    N_HEADS = 6
     N_LAYERS = 6
-    N_EMBD = 512
-    BLOCK_SIZE = 1024
+    N_EMBD = 384
+    BLOCK_SIZE = 512
 
 
 config = Config()

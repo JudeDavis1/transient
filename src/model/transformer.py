@@ -238,17 +238,16 @@ class TransformerModel(nn.Module):
 
         # idx and targets are both (B, T) tensor of integers
         token_embed: torch.Tensor = self.token_table(idx.long()).to(device)  # (B, T, C)
-        # print(self.token_table.weight.isnan().any())
         self.freqs_cis = self.freqs_cis.to(device)
         freqs_cis = self.freqs_cis[start_pos : start_pos + T]
 
         mask = None
-        if T > 1:
-            mask = torch.full(
-                (1, 1, T, T), float("-inf"), device=idx.device
-            )
-            mask = torch.triu(mask, diagonal=start_pos if self.training else start_pos + 1).type_as(token_embed)
-            # print(mask); exit(0)
+        # if T > 1:
+        #     mask = torch.full(
+        #         (1, 1, T, T), float("-inf"), device=idx.device
+        #     )
+        #     mask = torch.triu(mask, diagonal=start_pos if self.training else start_pos + 1).type_as(token_embed)
+        #     # print(mask); exit(0)
 
         x: torch.Tensor = token_embed
         for block in self.blocks:

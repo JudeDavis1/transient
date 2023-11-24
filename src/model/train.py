@@ -17,7 +17,7 @@ dataset.generate_batches(config.BLOCK_SIZE)
 # train and test splits
 DATA = dataset.batch_data
 N = int(0.98 * len(DATA))
-VALIDATION_INTERVAL = 3
+VALIDATION_INTERVAL = 10
 OPTIMIZER_CHECKPOINT_NAME = "optimizer_cache"
 MIN_LR = 0.00004
 GRAD_MAX_NORM = 1.0
@@ -39,7 +39,6 @@ def main():
 
     if args.device.startswith("xla"):
         import torch_xla as xm
-
         args.device = xm.core.xla_model.xla_device()
 
     random.shuffle(DATA)
@@ -100,7 +99,8 @@ def main():
         limit_val_batches=1,
         accumulate_grad_batches=args.gradient_acc,
         enable_checkpointing=True,
-        accelerator=args.device
+        accelerator=args.device,
+        precision="32"
     )
     trainer.fit(runner, train_dataloaders=train_data, val_dataloaders=val_data)
 
@@ -121,36 +121,6 @@ def show_loss(epochs):
     plt.plot(epoch_l, val_loss_history, label="Validation loss")
     plt.legend()
     plt.savefig("loss_history.png")
-
-
-# @torch.no_grad()
-# def get_val_loss(model: TransformerModel, dataloader, devic="cpu", eval_iters=50) -> float:
-#     """Estimates the validation loss of current model"""
-
-#     model.eval()
-
-#     val_loss = 0.0
-#     for _ in range(eval_iters):
-#         X, Y = get_batch(dataloader)
-
-#         _, loss = model(
-#             idx=X.to(model), targets=Y.to(DEVICE), start_pos=0, device=DEVICE
-#         )
-#         val_loss += loss.mean().item()
-
-#     # get the mean
-#     val_loss /= eval_iters
-#     model.train()
-
-#     return val_loss
-
-
-# def get_batch(dataloader: DataLoader):
-#     """Get a randomly sampled batch of data"""
-
-#     x, y = next(iter(dataloader))
-
-#     return (x.to(DEVICE), y.to(DEVICE))
 
 
 class FakeGradScaler:
