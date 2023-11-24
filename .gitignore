@@ -5,3 +5,4 @@ models/*.pt
 .env*
 .DS_Store
 train_data.gz.npy
+lightning_logs

@@ -4,9 +4,7 @@ import torch
 
 from src import logger
 from src.config import config
-from src.model.transformer import (
-    TransientRunner, dataset
-)
+from src.model.transformer import TransientRunner, dataset
 
 WARMUP = True
 
@@ -15,7 +13,7 @@ WARMUP = True
 
 def main():
     with torch.no_grad():
-        device = "cpu"
+        device = "mps"
         runner = TransientRunner(
             block_size=config.BLOCK_SIZE,
             n_embd=config.N_EMBD,

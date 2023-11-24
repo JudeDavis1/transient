@@ -61,7 +61,6 @@ class TransientRunner(pl.LightningModule):
             n_heads=self.n_heads,
             dropout=self.dropout,
             batch_size=batch_size,
-            use_complex=self.m_device != "mps",
         ).apply(self._init_weights)
 
     def forward(
@@ -85,7 +84,7 @@ class TransientRunner(pl.LightningModule):
             self.model.parameters(), lr=0.0003, betas=(0.9, 0.98), weight_decay=0.1
         )
 
-    def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
+    def training_step(self, batch) -> STEP_OUTPUT:
         xb, yb = batch
         _, loss = self.forward(xb, yb)
         self.log("train_loss", loss, prog_bar=True)
@@ -195,7 +194,6 @@ class TransformerModel(nn.Module):
         n_heads=8,
         dropout=0.2,
         batch_size=1,
-        use_complex=False,
     ):
         super().__init__()
 
@@ -226,7 +224,7 @@ class TransformerModel(nn.Module):
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
 
         self.freqs_cis = precompute_freqs_cis(
-            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2, use_complex=False
+            self.n_embd // self.n_heads, config.BLOCK_SIZE * 2
         )
 
     def forward(
@@ -246,22 +244,16 @@ class TransformerModel(nn.Module):
 
         mask = None
         if T > 1:
-            mask = torch.full((T, T), float("-inf"), device=device)
-
-            mask = torch.triu(mask, diagonal=1)
-
-            # When performing key-value caching, we compute the attention scores
-            # only for the new sequence. Thus, the matrix of scores is of size
-            # (T, cache_len + T), and the only masked entries are (i, j) for
-            # j > cache_len + i, since row i corresponds to token cache_len + i.
-            mask = torch.hstack(
-                [torch.zeros((T, start_pos), device=device), mask]
-            ).type_as(token_embed)
+            mask = torch.full(
+                (1, 1, T, T), float("-inf"), device=idx.device
+            )
+            mask = torch.triu(mask, diagonal=start_pos if self.training else start_pos + 1).type_as(token_embed)
+            # print(mask); exit(0)
 
         x: torch.Tensor = token_embed
         for block in self.blocks:
             x = block(x, freqs_cis=freqs_cis, start_pos=start_pos, mask=mask)
-
+        
         x: torch.Tensor = self.dec_dropout(self.ln_f(x))  # (B, T, C)
         logits: torch.Tensor = self.lm_head(x)  # (B, T, dataset.vocab_size)
 
@@ -271,6 +263,7 @@ class TransformerModel(nn.Module):
             targets = targets.view(B * T)
 
             loss = F.cross_entropy(logits, targets)
+            
         else:
             loss = None
 
@@ -363,8 +356,8 @@ class MultiHeadAttention(nn.Module):
         k = self.cache_k[:B, : start_pos + T]
         v = self.cache_v[:B, : start_pos + T]
 
-        k = repeat_kv(k, 1)
-        v = repeat_kv(v, 1)
+        # k = repeat_kv(k, 1)
+        # v = repeat_kv(v, 1)
 
         q = q.transpose(1, 2)  # (B, nh, T, hs)
         k = k.transpose(1, 2)  # (B, nh, T, hs)
@@ -375,7 +368,7 @@ class MultiHeadAttention(nn.Module):
             dropout_p = 0.0
 
         out = F.scaled_dot_product_attention(
-            q, k, v, dropout_p=dropout_p, attn_mask=mask
+            q, k, v, dropout_p=dropout_p, is_causal=True
         )
 
         # join heads concatenating along the last dimension
