@@ -63,7 +63,7 @@ def main():
 
     pretrained_model_exists = os.path.exists(args.from_pretrained)
     if pretrained_model_exists:
-        runner = TransientRunner.load_from_checkpoint(args.from_pretrained)
+        runner.load(args.from_pretrained)
 
     runner.use_parallel_if_available()
     runner.model.train()

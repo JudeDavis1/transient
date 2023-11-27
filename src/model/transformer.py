@@ -88,14 +88,13 @@ class TransientRunner(pl.LightningModule):
         xb, yb = batch
         _, loss = self.forward(xb, yb)
         self.log("train_loss", loss, prog_bar=True)
-        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch) -> STEP_OUTPUT:
         self.eval()
         xb, yb = batch
         _, loss = self.model(idx=xb, targets=yb, start_pos=0, device=self.device)
-        self.log("val_loss", loss)
+        self.log("val_loss", loss, prog_bar=True)
         self.train()
 
     def generate(
