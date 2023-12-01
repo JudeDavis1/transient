@@ -2,7 +2,7 @@ from typing import Tuple
 
 import torch
 
-device = "mps"
+device = "cuda"
 
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
@@ -63,11 +63,11 @@ def apply_rotary_emb(
         xk_out = _emulate_complex_mul(xk_, freqs_cis).flatten(3)
         return xq_out.type_as(xq), xk_out.type_as(xk)
     
-    xq_ = xq.float().reshape(*xq.shape[:-1], -1, 2)
-    xk_ = xk.float().reshape(*xk.shape[:-1], -1, 2)
-    freqs_cis = torch.view_as_real(reshape_for_broadcast(freqs_cis, xq_)).to(device)
-    xq_out = _emulate_complex_mul(xq_, freqs_cis).flatten(3)
-    xk_out = _emulate_complex_mul(xk_, freqs_cis).flatten(3)
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
+    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
     return xq_out.type_as(xq), xk_out.type_as(xk)
 
 

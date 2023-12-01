@@ -241,12 +241,22 @@ class TransformerModel(nn.Module):
         freqs_cis = self.freqs_cis[start_pos : start_pos + T]
 
         mask = None
-        # if T > 1:
-        #     mask = torch.full(
-        #         (1, 1, T, T), float("-inf"), device=idx.device
-        #     )
-        #     mask = torch.triu(mask, diagonal=start_pos if self.training else start_pos + 1).type_as(token_embed)
-        #     # print(mask); exit(0)
+        if T > 1:
+            mask = torch.full(
+                (T, T), float("-inf"), device=idx.device
+            )
+
+            mask = torch.triu(mask, diagonal=1)
+
+            # When performing key-value caching, we compute the attention scores
+            # only for the new sequence. Thus, the matrix of scores is of size
+            # (T, cache_len + T), and the only masked entries are (i, j) for
+            # j > cache_len + i, since row i corresponds to token cache_len + i.
+            mask = torch.hstack([
+                torch.zeros((T, start_pos), device=idx.device),
+                mask
+            ]).type_as(token_embed)
+            # print(mask); exit(0)
 
         x: torch.Tensor = token_embed
         for block in self.blocks:
@@ -348,14 +358,16 @@ class MultiHeadAttention(nn.Module):
         self.cache_k = self.cache_k.to(q)
         self.cache_v = self.cache_v.to(v)
 
+        self._resize_cache(B, start_pos + T)
+
         self.cache_k[:B, start_pos : start_pos + T] = k.detach()
         self.cache_v[:B, start_pos : start_pos + T] = v.detach()
 
         k = self.cache_k[:B, : start_pos + T]
         v = self.cache_v[:B, : start_pos + T]
 
-        # k = repeat_kv(k, 1)
-        # v = repeat_kv(v, 1)
+        k = repeat_kv(k, 1)
+        v = repeat_kv(v, 1)
 
         q = q.transpose(1, 2)  # (B, nh, T, hs)
         k = k.transpose(1, 2)  # (B, nh, T, hs)
@@ -366,7 +378,7 @@ class MultiHeadAttention(nn.Module):
             dropout_p = 0.0
 
         out = F.scaled_dot_product_attention(
-            q, k, v, dropout_p=dropout_p, is_causal=True
+            q, k, v, dropout_p=dropout_p, attn_mask=mask
         )
 
         # join heads concatenating along the last dimension
@@ -374,6 +386,22 @@ class MultiHeadAttention(nn.Module):
         out = self.dropout(self.proj(out))
 
         return out
+    
+    def _resize_cache(self, batch_size, new_size):
+        """Resize the key and value cache tensors if necessary."""
+        if new_size > self.cache_k.size(1):
+            # Determine the new cache size
+            new_cache_size = max(new_size, self.cache_k.size(1) * 2)  # Resize to double the current size or the new size, whichever is larger
+
+            # Resize key cache
+            new_cache_k = torch.zeros(batch_size, new_cache_size, self.n_heads, self.cache_k.size(3), device=self.cache_k.device)
+            new_cache_k[:, :self.cache_k.size(1)] = self.cache_k
+            self.cache_k = new_cache_k
+
+            # Resize value cache
+            new_cache_v = torch.zeros_like(new_cache_k)
+            new_cache_v[:, :self.cache_v.size(1)] = self.cache_v
+            self.cache_v = new_cache_v
 
 
 class FeedForward(nn.Module):
