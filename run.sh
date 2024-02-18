@@ -4,4 +4,4 @@
 
 device=$1
 
-pipenv run train -ga 5 -mp -e 1 --device $device -b 10 --lr 0.0003 -d 0.0 --from-pretrained model_cache
+pipenv run train -ga 2 -mp -e 5 --device $device -b 16 --lr 0.0003 -d 0.1 --from-pretrained model_cache

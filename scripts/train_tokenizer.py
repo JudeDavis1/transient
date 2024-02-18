@@ -10,7 +10,7 @@ import glob
 from tokenizers import ByteLevelBPETokenizer, Tokenizer
 
 tokenizer = ByteLevelBPETokenizer()
-tokenizer.train(vocab_size=4096, files=glob.glob("data/*"), min_frequency=2)
+tokenizer.train(vocab_size=30_000, files=glob.glob("data/*"), min_frequency=2)
 
 print("[*] Saving the tokenizer...")
 tokenizer.save("bpe_model.json")

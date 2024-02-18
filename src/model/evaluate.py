@@ -43,7 +43,7 @@ def main():
                     context.to(device),
                     max_new_tokens=int(sys.argv[1]),
                     display=True,
-                    temperature=0.5,
+                    temperature=0.7,
                     greedy=False,
                 )
 

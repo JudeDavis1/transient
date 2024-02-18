@@ -343,7 +343,7 @@ class MultiHeadAttention(nn.Module):
         )
 
     def forward(
-        self, x, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor
+        self, x: torch.Tensor, freqs_cis: torch.Tensor, start_pos: int, mask: torch.Tensor
     ) -> torch.Tensor:
         B, T, C = x.shape
 
@@ -378,7 +378,7 @@ class MultiHeadAttention(nn.Module):
             dropout_p = 0.0
 
         out = F.scaled_dot_product_attention(
-            q, k, v, dropout_p=dropout_p, attn_mask=mask
+            q, k, v, dropout_p=dropout_p, attn_mask=None
         )
 
         # join heads concatenating along the last dimension
@@ -389,19 +389,22 @@ class MultiHeadAttention(nn.Module):
     
     def _resize_cache(self, batch_size, new_size):
         """Resize the key and value cache tensors if necessary."""
-        if new_size > self.cache_k.size(1):
-            # Determine the new cache size
-            new_cache_size = max(new_size, self.cache_k.size(1) * 2)  # Resize to double the current size or the new size, whichever is larger
+        
+        if new_size < self.cache_k.size(1):
+            return
+        
+        # Determine the new cache size
+        new_cache_size = max(new_size, self.cache_k.size(1) * 2)  # Resize to double the current size or the new size, whichever is larger
 
-            # Resize key cache
-            new_cache_k = torch.zeros(batch_size, new_cache_size, self.n_heads, self.cache_k.size(3), device=self.cache_k.device)
-            new_cache_k[:, :self.cache_k.size(1)] = self.cache_k
-            self.cache_k = new_cache_k
+        # Resize key cache
+        new_cache_k = torch.zeros(batch_size, new_cache_size, self.n_heads, self.cache_k.size(3), device=self.cache_k.device)
+        new_cache_k[:, :self.cache_k.size(1)] = self.cache_k
+        self.cache_k = new_cache_k
 
-            # Resize value cache
-            new_cache_v = torch.zeros_like(new_cache_k)
-            new_cache_v[:, :self.cache_v.size(1)] = self.cache_v
-            self.cache_v = new_cache_v
+        # Resize value cache
+        new_cache_v = torch.zeros_like(new_cache_k)
+        new_cache_v[:, :self.cache_v.size(1)] = self.cache_v
+        self.cache_v = new_cache_v
 
 
 class FeedForward(nn.Module):

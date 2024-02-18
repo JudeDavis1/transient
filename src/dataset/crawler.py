@@ -13,10 +13,10 @@ from src import logger
 
 def test():
     crawler = Crawler()
-    crawler.crawl("https://en.wikipedia.org/wiki/Chess", max_depth=int(sys.argv[1]))
+    crawler.crawl("https://en.wikipedia.org/wiki/Human", max_depth=int(sys.argv[1]))
 
     logger.INFO(f"Writing to file...")
-    with io.open("./data/wiki.txt", "a", encoding="utf-8") as f:
+    with io.open("./data/wiki1.txt", "a", encoding="utf-8") as f:
         f.writelines(crawler.get_text())
 
 
@@ -64,6 +64,9 @@ class Crawler:
 
             try:
                 src = requests.get(page).text
+
+            except KeyboardInterrupt:
+                break
             except:
                 logger.CRITICAL(f"Request error with page: {page}", engine=tqdm.write)
                 continue
@@ -117,7 +120,6 @@ class Crawler:
 
 
 class WebItem:
-
     """
     Class:
         - An item that contains relevant information for crawling a site.
