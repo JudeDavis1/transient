@@ -98,9 +98,10 @@ def main():
         val_check_interval=VALIDATION_INTERVAL,
         limit_val_batches=1,
         accumulate_grad_batches=args.gradient_acc,
-        enable_checkpointing=True,
         accelerator=args.device,
-        precision="32"
+        precision="bf16-mixed",
+        enable_checkpointing=False,
+        logger=False
     )
     trainer.fit(runner, train_dataloaders=train_data, val_dataloaders=val_data)
 

@@ -13,7 +13,7 @@ WARMUP = True
 
 def main():
     with torch.no_grad():
-        device = "mps"
+        device = "cuda"
         runner = TransientRunner(
             block_size=config.BLOCK_SIZE,
             n_embd=config.N_EMBD,
